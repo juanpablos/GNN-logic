@@ -44,15 +44,18 @@ def __graph_file_reader(filename: str):
     graph_list: List[nx.Graph] = []
     with open(filename, 'r') as f:
         # ! only accept format 1, described in readme.
+        # first line -> number of graphs
         n_graphs = int(f.readline().strip())
         for _ in range(n_graphs):
+            # number of nodes , graph label
             n_nodes, graph_label = map(int, f.readline().strip().split(" "))
             # creates the graph and with its label
             graph = nx.Graph(label=graph_label)
             # adds all nodes
             graph.add_nodes_from(range(n_nodes))
             for node_id in range(n_nodes):
-                node_row = map(int, f.readline().strip().split(" "))
+                # node label , number of edges, neighbours
+                node_row = list(map(int, f.readline().strip().split(" ")))
                 # we ignore the node label as we are adding our own later
                 # node_label = node_row[0]
                 n_edges = node_row[1]
@@ -106,7 +109,6 @@ def generator(distribution: Optional[List[float]],
         # TODO: graph label
         graph.graph["label"] = 0
 
-    assert len(graph_list) == n
     __write_graphs(graph_list, filename=file_output)
 
     return graph_list
@@ -122,8 +124,9 @@ if __name__ == "__main__":
         n=150,
         min_nodes=3,
         max_nodes=10,
-        structure_fn=nx.erdos_renyi_graph,
+        # structure_fn=nx.erdos_renyi_graph,
         n_colors=10,
         random_state=seed,
         p=0.1,  # random.random(),
-        file_output="testing.txt")
+        file_output="testing2.txt",
+        file_input="MUTAG.txt")
