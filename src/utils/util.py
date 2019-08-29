@@ -8,15 +8,20 @@ from torch.jit.annotations import TensorType
 
 
 class S2VGraph(object):
-    def __init__(self, g: nx.Graph, label: int, node_tags: List[int] = None, node_features: TensorType = None):
-        '''
+    def __init__(
+            self,
+            g: nx.Graph,
+            label: int,
+            node_tags: List[int] = None,
+            node_features: TensorType = None):
+        """
             g: a networkx graph
             label: an integer graph label
             node_tags: a list of integer node tags
             node_features: a torch float tensor, one-hot representation of the tag that is used as input to neural nets
             edge_mat: a torch long tensor, contain edge list, will be used to create torch sparse tensor
             neighbors: list of neighbors (without self-loop)
-        '''
+        """
         self.label: int = label
         self.g: nx.Graph = g
         self.node_tags: List[int] = node_tags
@@ -27,12 +32,13 @@ class S2VGraph(object):
         self.max_neighbor: int = 0
 
 
-def load_data(dataset: str, degree_as_tag: bool = False) -> Tuple[List[S2VGraph], int]:
-    '''
+def load_data(
+        dataset: str, degree_as_tag: bool = False) -> Tuple[List[S2VGraph], int]:
+    """
         dataset: name of dataset
         test_proportion: ratio of test train split
         andom splitting of dataset
-    '''
+    """
 
     print('loading data')
     graph_list: List[S2VGraph] = []
@@ -46,7 +52,7 @@ def load_data(dataset: str, degree_as_tag: bool = False) -> Tuple[List[S2VGraph]
             graph_row = f.readline().strip().split()
             n_nodes, graph_label = [int(w) for w in graph_row]
             # register graph label
-            if not graph_label in label_dict:
+            if graph_label not in label_dict:
                 mapped = len(label_dict)
                 label_dict[graph_label] = mapped
             g = nx.Graph()
@@ -68,7 +74,7 @@ def load_data(dataset: str, degree_as_tag: bool = False) -> Tuple[List[S2VGraph]
                     attr = None
                 else:
                     # ? no idea what this is
-                    node_row,  = [int(w) for w in node_row[:tmp]]
+                    node_row, = [int(w) for w in node_row[:tmp]]
                     attr = np.array([float(w) for w in node_row[tmp:]])
 
                 # node label
@@ -166,8 +172,11 @@ def load_data(dataset: str, degree_as_tag: bool = False) -> Tuple[List[S2VGraph]
     return graph_list, len(label_dict)
 
 
-def separate_data(graph_list: List[S2VGraph], seed: int, fold_idx) -> Tuple[List[S2VGraph], List[S2VGraph]]:
-    assert 0 <= fold_idx and fold_idx < 10, "fold_idx must be from 0 to 9."
+def separate_data(graph_list: List[S2VGraph],
+                  seed: int,
+                  fold_idx) -> Tuple[List[S2VGraph],
+                                     List[S2VGraph]]:
+    assert 0 <= fold_idx < 10, "fold_idx must be from 0 to 9."
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=seed)
 
     labels = [graph.label for graph in graph_list]
