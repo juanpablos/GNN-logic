@@ -1,3 +1,6 @@
 tqdm
 numpy
 networkx
+
+torch==1.2.0
+sklearn
