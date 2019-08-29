@@ -1,4 +1,3 @@
-import random
 from typing import Dict, List, Tuple
 
 import networkx as nx
@@ -32,7 +31,7 @@ def load_data(dataset: str, degree_as_tag: bool = False) -> Tuple[List[S2VGraph]
     '''
         dataset: name of dataset
         test_proportion: ratio of test train split
-        seed: random seed for random splitting of dataset
+        andom splitting of dataset
     '''
 
     print('loading data')

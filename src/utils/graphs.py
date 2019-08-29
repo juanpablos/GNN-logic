@@ -3,7 +3,6 @@ from typing import Callable, List, Optional
 
 import networkx as nx
 import numpy as np
-from networkx.algorithms.assortativity import neighbor_degree
 
 
 def __generate_graph(n: int, generator_fn: Callable[..., nx.Graph], min_nodes: int, max_nodes: int, random_state: int = 0, **kwargs) -> List[nx.Graph]:
