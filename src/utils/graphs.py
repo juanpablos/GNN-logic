@@ -21,53 +21,6 @@ def __generate_graph(n: int,
     return graph_list
 
 
-def generator(distribution: Optional[List[float]],
-              n: int,
-              min_nodes: int,
-              max_nodes: int,
-              file_output: str,
-              structure_fn: Optional[Callable[...,
-                                              nx.Graph]] = None,
-              file_input: Optional[str] = None,
-              n_colors: int = 10,
-              random_state: int = 0,
-              **kwargs):
-    if distribution is None:
-        distribution = [1 / n_colors] * n_colors
-
-    if structure_fn is not None:
-        graph_list = __generate_graph(
-            n,
-            structure_fn,
-            in_nodes=min_nodes,
-            max_nodes=max_nodes,
-            random_state=random_state,
-            **kwargs)
-    elif file_input is not None:
-        # TODO: read from file
-        graph_list: List[nx.Graph] = []
-        pass
-    else:
-        raise ValueError()
-
-    possible_labels = list(range(n_colors))
-    for graph in graph_list:
-        n_nodes = len(graph)
-        node_colors = np.random.choice(
-            possible_labels, size=n_nodes, replace=True, p=distribution)
-
-        nx.set_node_attributes(graph, dict(
-            zip(graph, node_colors)), name="color")
-
-        # TODO: graph label
-        graph.graph["label"] = 0
-
-    assert len(graph_list) == n
-    __write_graphs(graph_list, filename=file_output)
-
-    return graph_list
-
-
 def __write_graphs(graphs: List[nx.Graph], filename: str = "file.txt") -> None:
     with open(filename, 'w') as f:
         # write number of graphs
@@ -87,6 +40,78 @@ def __write_graphs(graphs: List[nx.Graph], filename: str = "file.txt") -> None:
                 f.write(f"{label} {len(graph[node_index])} {edges}\n")
 
 
+def __graph_file_reader(filename: str):
+    graph_list: List[nx.Graph] = []
+    with open(filename, 'r') as f:
+        # ! only accept format 1, described in readme.
+        n_graphs = int(f.readline().strip())
+        for _ in range(n_graphs):
+            n_nodes, graph_label = map(int, f.readline().strip().split(" "))
+            # creates the graph and with its label
+            graph = nx.Graph(label=graph_label)
+            # adds all nodes
+            graph.add_nodes_from(range(n_nodes))
+            for node_id in range(n_nodes):
+                node_row = map(int, f.readline().strip().split(" "))
+                # we ignore the node label as we are adding our own later
+                # node_label = node_row[0]
+                n_edges = node_row[1]
+                if n_edges > 0:
+                    edges = [(node_id, other_node)
+                             for other_node in node_row[2:]]
+                    graph.add_edges_from(edges)
+
+            graph_list.append(graph)
+
+    return graph_list
+
+
+def generator(distribution: Optional[List[float]],
+              n: int,
+              min_nodes: int,
+              max_nodes: int,
+              file_output: str,
+              structure_fn: Optional[Callable[...,
+                                              nx.Graph]] = None,
+              file_input: Optional[str] = None,
+              n_colors: int = 10,
+              random_state: int = 0,
+              **kwargs) -> None:
+    if distribution is None:
+        distribution = [1 / n_colors] * n_colors
+
+    if structure_fn is not None:
+        graph_list = __generate_graph(
+            n,
+            structure_fn,
+            min_nodes=min_nodes,
+            max_nodes=max_nodes,
+            random_state=random_state,
+            **kwargs)
+    elif file_input is not None:
+        graph_list = __graph_file_reader(filename=file_input)
+    else:
+        raise ValueError(
+            "Must indicate a graph generator function or a filename with the graph structure")
+
+    possible_labels = list(range(n_colors))
+    for graph in graph_list:
+        n_nodes = len(graph)
+        node_colors = np.random.choice(
+            possible_labels, size=n_nodes, replace=True, p=distribution)
+
+        nx.set_node_attributes(graph, dict(
+            zip(graph, node_colors)), name="color")
+
+        # TODO: graph label
+        graph.graph["label"] = 0
+
+    assert len(graph_list) == n
+    __write_graphs(graph_list, filename=file_output)
+
+    return graph_list
+
+
 if __name__ == "__main__":
     seed = 0
     random.seed(seed)
@@ -94,16 +119,11 @@ if __name__ == "__main__":
 
     g_l = generator(
         distribution=None,
-        n=5,
+        n=150,
         min_nodes=3,
         max_nodes=10,
         structure_fn=nx.erdos_renyi_graph,
         n_colors=10,
         random_state=seed,
-        p=0.5,
+        p=0.1,  # random.random(),
         file_output="testing.txt")
-
-    for g in g_l:
-        print(g.nodes(data="color"))
-        print(g.edges)
-        print("--" * 10)
