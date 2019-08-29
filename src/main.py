@@ -35,9 +35,9 @@ def train(args, model, device, train_graphs, optimizer, epoch):
 
         # backprop
         if optimizer is not None:
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            optimizer.zero_grad()
 
         loss = loss.detach().cpu().numpy()
         loss_accum += loss
