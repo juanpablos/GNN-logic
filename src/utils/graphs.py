@@ -3,6 +3,7 @@ from typing import Callable, List, Optional
 
 import networkx as nx
 import numpy as np
+from networkx.algorithms.assortativity import neighbor_degree
 
 
 def __generate_graph(n: int, generator_fn: Callable[..., nx.Graph], min_nodes: int, max_nodes: int, random_state: int = 0, **kwargs) -> List[nx.Graph]:
@@ -39,7 +40,32 @@ def generator(distribution: Optional[List[float]], n: int, min_nodes: int, max_n
         nx.set_node_attributes(graph, dict(
             zip(graph, node_colors)), name="color")
 
+        # TODO: graph label
+        graph.graph["label"] = 0
+
+    assert len(graph_list) == n
+    __write_graphs(graph_list, filename=file_output)
+
     return graph_list
+
+
+def __write_graphs(graphs: List[nx.Graph], filename: str = "file.txt") -> None:
+    with open(filename, 'w') as f:
+        # write number of graphs
+        f.write(f"{len(graphs)}\n")
+
+        for graph in graphs:
+            n_nodes = graph.number_of_nodes()
+            label = graph.graph["label"]
+            # write N_nodes in graph_i and label_i
+            f.write(f"{n_nodes} {label}\n")
+
+            # write nodes
+            for node in graph.nodes(data="color"):
+                node_index, label = node
+                edges = " ".join(map(str, list(graph[node_index].keys())))
+
+                f.write(f"{label} {len(graph[node_index])} {edges}\n")
 
 
 if __name__ == "__main__":
@@ -47,8 +73,10 @@ if __name__ == "__main__":
     random.seed(seed)
     np.random.seed(seed)
 
-    g_l = generator(distribution=None, n=20, min_nodes=3, max_nodes=10,
-                    structure_fn=nx.erdos_renyi_graph, n_colors=4, random_state=seed, p=0.5, file_output="")
+    g_l = generator(distribution=None, n=5, min_nodes=3, max_nodes=10,
+                    structure_fn=nx.erdos_renyi_graph, n_colors=10, random_state=seed, p=0.5, file_output="testing.txt")
 
     for g in g_l:
         print(g.nodes(data="color"))
+        print(g.edges)
+        print("--"*10)
