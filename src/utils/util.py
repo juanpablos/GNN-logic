@@ -1,4 +1,5 @@
 import random
+from typing import Dict, List, Tuple
 
 import networkx as nx
 import numpy as np
@@ -17,17 +18,17 @@ class S2VGraph(object):
             edge_mat: a torch long tensor, contain edge list, will be used to create torch sparse tensor
             neighbors: list of neighbors (without self-loop)
         '''
-        self.label = label
-        self.g = g
-        self.node_tags = node_tags
+        self.label: int = label
+        self.g: nx.Graph = g
+        self.node_tags: List[int] = node_tags
         self.neighbors: List[List[int]] = []
-        self.node_features = node_features
+        self.node_features: TensorType = node_features
         self.edge_mat: TensorType = 0
 
         self.max_neighbor: int = 0
 
 
-def load_data(dataset: str, degree_as_tag: bool = False):
+def load_data(dataset: str, degree_as_tag: bool = False) -> Tuple[List[S2VGraph], int]:
     '''
         dataset: name of dataset
         test_proportion: ratio of test train split
@@ -166,21 +167,19 @@ def load_data(dataset: str, degree_as_tag: bool = False):
     return graph_list, len(label_dict)
 
 
-def separate_data(graph_list, seed, fold_idx):
+def separate_data(graph_list: List[S2VGraph], seed: int, fold_idx) -> Tuple[List[S2VGraph], List[S2VGraph]]:
     assert 0 <= fold_idx and fold_idx < 10, "fold_idx must be from 0 to 9."
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=seed)
 
     labels = [graph.label for graph in graph_list]
     idx_list = []
+    # placeholder: np.zeros(len(labels)) -> vector of n_labels 0s
     for idx in skf.split(np.zeros(len(labels)), labels):
         idx_list.append(idx)
+        print(idx)
     train_idx, test_idx = idx_list[fold_idx]
 
     train_graph_list = [graph_list[i] for i in train_idx]
     test_graph_list = [graph_list[i] for i in test_idx]
 
     return train_graph_list, test_graph_list
-
-
-if __name__ == "__main__":
-    load_data("REDDITMULTI5K.txt", degree_as_tag=True)

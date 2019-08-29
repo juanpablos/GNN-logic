@@ -136,13 +136,17 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(0)
 
+    # num_classes -> graph classes, no node classes
     graphs, num_classes = load_data(args.dataset, args.degree_as_tag)
 
-    # 10-fold cross validation. Conduct an experiment on the fold specified by args.fold_idx.
+    # 10-fold cross validation. Conduct an experiment on the fold
+    # specified by args.fold_idx.
     train_graphs, test_graphs = separate_data(graphs, args.seed, args.fold_idx)
 
-    model = GraphCNN(args.num_layers, args.num_mlp_layers, train_graphs[0].node_features.shape[1], args.hidden_dim, num_classes,
-                     args.final_dropout, args.learn_eps, args.graph_pooling_type, args.neighbor_pooling_type, device).to(device)
+    model = GraphCNN(args.num_layers, args.num_mlp_layers,
+                     train_graphs[0].node_features.shape[1], args.hidden_dim, num_classes, args.final_dropout, args.learn_eps, args.graph_pooling_type, args.neighbor_pooling_type,
+                     device
+                     ).to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
