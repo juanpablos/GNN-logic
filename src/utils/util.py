@@ -1,5 +1,4 @@
 import random
-from typing import Dict, List, Optional, Set, Tuple
 
 import networkx as nx
 import numpy as np
@@ -120,16 +119,14 @@ def load_data(dataset: str, degree_as_tag: bool = False):
             degree_list.append(len(graph.neighbors[i]))
         graph.max_neighbor = max(degree_list)
 
-        # ? is this redundant? see line 100
+        # ? is this redundant?
         graph.label = label_dict[graph.label]
 
-        # ? why do you need the list? tuple is fine
+        # create edges to make matrix
         edges = [list(pair) for pair in graph.g.edges()]
         # reciprocal
         edges.extend([[i, j] for j, i in edges])
 
-        # ! this does nothing -> remove
-        deg_list = list(dict(graph.g.degree(range(len(graph.g)))).values())
         # generate the edge mapping with 2 lists.
         # matrix is (2,2xE),
         # 2-> node in node out
@@ -148,14 +145,10 @@ def load_data(dataset: str, degree_as_tag: bool = False):
         tagset = tagset.union(set(graph.node_tags))
 
     tagset = list(tagset)
-    # ? {node_labels.values(): node_labels.values()}
     # * used when degree_as_tag=True, useless otherwise
     # * just creates {i: i} map
+    # ? {node_labels.values(): node_labels.values()}
     tag2index = {tagset[i]: i for i in range(len(tagset))}
-
-    print(node_labels)
-    print(node_labels.values())
-    print(tag2index)
 
     for graph in graph_list:
         # matrix (n_nodes, n_labels)
