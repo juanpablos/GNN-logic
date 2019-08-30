@@ -21,7 +21,9 @@ def __generate_graph(n: int,
     return graph_list
 
 
-def __write_graphs(graphs: List[nx.Graph], filename: str = "file.txt") -> None:
+def __write_graphs(graphs: List[nx.Graph],
+                   filename: str = "file.txt",
+                   write_features: Optional[List[str]] = None) -> None:
     with open(filename, 'w') as f:
         # write number of graphs
         f.write(f"{len(graphs)}\n")
@@ -33,11 +35,24 @@ def __write_graphs(graphs: List[nx.Graph], filename: str = "file.txt") -> None:
             f.write(f"{n_nodes} {label}\n")
 
             # write nodes
-            for node in graph.nodes(data="color"):
-                node_index, label = node
+            for node in graph.nodes(data=True):
+                node_index, node_attributes = node
                 edges = " ".join(map(str, list(graph[node_index].keys())))
+                n_edges = len(graph[node_index])
 
-                f.write(f"{label} {len(graph[node_index])} {edges}\n")
+                # writing type 1 graph
+                if write_features is None:
+                    f.write(
+                        f"{node_attributes['color']} {n_edges} {edges}\n")
+
+                # writing type 2 graph
+                else:
+                    n_features = len(write_features)
+                    features = " ".join([node_attributes[feature]
+                                         for feature in write_features])
+                    assert n_features == len(features)
+                    f.write(
+                        f"{n_features} {features} {node_attributes['label']} {n_edges}, {edges}")
 
 
 def __graph_file_reader(filename: str,
@@ -60,7 +75,8 @@ def __graph_file_reader(filename: str,
                 # we may ignore the node label as we are adding our own later
                 if read_node_label:
                     node_label = node_row[0]
-                    graph.node[node_id]["label"] = node_label
+                    # * we assume the label of the node represents its color
+                    graph.node[node_id]["color"] = node_label
                 n_edges = node_row[1]
                 if n_edges > 0:
                     edges = [(node_id, other_node)
@@ -84,7 +100,7 @@ def generator(distribution: Optional[List[float]],
               random_state: int = 0,
               **kwargs) -> None:
     if distribution is None:
-        distribution = [1 / n_colors] * n_colors
+        distribution = [1. / n_colors] * n_colors
 
     if structure_fn is not None:
         graph_list = __generate_graph(
@@ -115,7 +131,31 @@ def generator(distribution: Optional[List[float]],
 
     __write_graphs(graph_list, filename=file_output)
 
-    return graph_list
+
+def tagger(input_file: str, output_file: str,
+           formula: Callable[[int, List[int]], bool]) -> None:
+    """Make labels for all nodes based on their color
+
+    Arguments:
+        input_file {str} -- name of the file to tag
+        output_file {str} -- name of the file to write
+        formula {Callable[[int, List[int]], bool]} -- function that tags each node. Arguments must be `color of the node` and `list of all node colors`. It returns a boolean meaning if the node satisfies the condition or not.
+    """
+    graph_list = __graph_file_reader(input_file, read_node_label=True)
+
+    for graph in graph_list:
+        node_colors = [node[1] for node in graph.nodes(data="color")]
+
+        for node_id in graph:
+            label = formula(node_colors[node_id], node_colors)
+            graph.node[node_id]["label"] = label
+
+    __write_graphs(graph_list, filename=output_file, write_features=["color"])
+
+
+def tagget_fn(node_feature: int, node_collection_features: List[int]) -> bool:
+    return node_feature == 0 and any(
+        feature == 1 for feature in node_collection_features)
 
 
 if __name__ == "__main__":
