@@ -40,7 +40,8 @@ def __write_graphs(graphs: List[nx.Graph], filename: str = "file.txt") -> None:
                 f.write(f"{label} {len(graph[node_index])} {edges}\n")
 
 
-def __graph_file_reader(filename: str):
+def __graph_file_reader(filename: str,
+                        read_node_label: bool = False) -> List[nx.Graph]:
     graph_list: List[nx.Graph] = []
     with open(filename, 'r') as f:
         # ! only accept format 1, described in readme.
@@ -56,8 +57,10 @@ def __graph_file_reader(filename: str):
             for node_id in range(n_nodes):
                 # node label , number of edges, neighbours
                 node_row = list(map(int, f.readline().strip().split(" ")))
-                # we ignore the node label as we are adding our own later
-                # node_label = node_row[0]
+                # we may ignore the node label as we are adding our own later
+                if read_node_label:
+                    node_label = node_row[0]
+                    graph.node[node_id]["label"] = node_label
                 n_edges = node_row[1]
                 if n_edges > 0:
                     edges = [(node_id, other_node)
@@ -92,7 +95,8 @@ def generator(distribution: Optional[List[float]],
             random_state=random_state,
             **kwargs)
     elif file_input is not None:
-        graph_list = __graph_file_reader(filename=file_input)
+        graph_list = __graph_file_reader(
+            filename=file_input, read_node_label=False)
     else:
         raise ValueError(
             "Must indicate a graph generator function or a filename with the graph structure")
