@@ -126,7 +126,7 @@ def generator(distribution: Optional[List[float]],
         nx.set_node_attributes(graph, dict(
             zip(graph, node_colors)), name="color")
 
-        # TODO: graph label
+        # placeholder
         graph.graph["label"] = 0
 
     __write_graphs(graph_list, filename=file_output)
@@ -168,7 +168,6 @@ def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
     return np.zeros(features.shape[0]), 0
 
 
-# TODO: when edge does not exist, dont write it
 if __name__ == "__main__":
     seed = 0
     random.seed(seed)
@@ -182,10 +181,10 @@ if __name__ == "__main__":
         structure_fn=nx.erdos_renyi_graph,
         n_colors=10,
         random_state=seed,
-        p=0.3,  # random.random(),
+        p=0.01,  # random.random(),
         # file_input="MUTAG.txt",
         file_output="colors1.txt")
-    tagger(
-        input_file="colors1.txt",
-        output_file="colors1_labeled.txt",
-        formula=tagger_fn)
+    # tagger(
+    #     input_file="colors1.txt",
+    #     output_file="colors1_labeled.txt",
+    #     formula=tagger_fn)

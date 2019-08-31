@@ -6,6 +6,8 @@ import torch
 from sklearn.model_selection import StratifiedKFold
 from torch.jit.annotations import TensorType
 
+# TODO: should be able to read new file format
+
 
 class S2VGraph(object):
     def __init__(
