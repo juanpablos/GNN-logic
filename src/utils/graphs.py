@@ -1,5 +1,5 @@
 import random
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 import networkx as nx
 import numpy as np
@@ -48,11 +48,11 @@ def __write_graphs(graphs: List[nx.Graph],
                 # writing type 2 graph
                 else:
                     n_features = len(write_features)
-                    features = " ".join([node_attributes[feature]
+                    features = " ".join([str(node_attributes[feature])
                                          for feature in write_features])
                     assert n_features == len(features)
                     f.write(
-                        f"{n_features} {features} {node_attributes['label']} {n_edges}, {edges}")
+                        f"{n_features} {features} {node_attributes['label']} {n_edges} {edges}\n")
 
 
 def __graph_file_reader(filename: str,
@@ -132,32 +132,43 @@ def generator(distribution: Optional[List[float]],
     __write_graphs(graph_list, filename=file_output)
 
 
-def tagger(input_file: str, output_file: str,
-           formula: Callable[[int, List[int]], bool]) -> None:
+def tagger(input_file: str, output_file: str, formula: Callable[[
+           List[int]], Tuple[List[bool], int]]) -> None:
     """Make labels for all nodes based on their color
 
     Arguments:
         input_file {str} -- name of the file to tag
         output_file {str} -- name of the file to write
-        formula {Callable[[int, List[int]], bool]} -- function that tags each node. Arguments must be `color of the node` and `list of all node colors`. It returns a boolean meaning if the node satisfies the condition or not.
+        formula {Callable[[List[int]], Tuple[np.array[bool], int]]} -- function that tags each node. Arguments must be `color of the nodes`. It returns a list of labels for each node and a boolean meaning if the graph has a node that satisfies the condition.
     """
     graph_list = __graph_file_reader(input_file, read_node_label=True)
 
     for graph in graph_list:
         node_colors = [node[1] for node in graph.nodes(data="color")]
 
+        labels, graph_label = formula(node_colors)
+        graph.graph["label"] = graph_label
+
         for node_id in graph:
-            label = formula(node_colors[node_id], node_colors)
-            graph.node[node_id]["label"] = label
+            graph.node[node_id]["label"] = labels[node_id]
 
     __write_graphs(graph_list, filename=output_file, write_features=["color"])
 
 
-def tagget_fn(node_feature: int, node_collection_features: List[int]) -> bool:
-    return node_feature == 0 and any(
-        feature == 1 for feature in node_collection_features)
+def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
+    features = np.array(node_features)
+    # green
+    existence_condition = np.any(features == 1)
+    if existence_condition:
+        # red
+        individual_condition = (features == 0).astype(int)
+        # return if each node is a red node or not
+        return individual_condition, 1
+    # no existance condition -> all nodes are 0
+    return np.zeros(features.shape[0]), 0
 
 
+# TODO: when edge does not exist, dont write it
 if __name__ == "__main__":
     seed = 0
     random.seed(seed)
@@ -166,11 +177,15 @@ if __name__ == "__main__":
     g_l = generator(
         distribution=None,
         n=150,
-        min_nodes=3,
-        max_nodes=10,
-        # structure_fn=nx.erdos_renyi_graph,
+        min_nodes=10,
+        max_nodes=100,
+        structure_fn=nx.erdos_renyi_graph,
         n_colors=10,
         random_state=seed,
-        p=0.1,  # random.random(),
-        file_output="testing2.txt",
-        file_input="MUTAG.txt")
+        p=0.3,  # random.random(),
+        # file_input="MUTAG.txt",
+        file_output="colors1.txt")
+    tagger(
+        input_file="colors1.txt",
+        output_file="colors1_labeled.txt",
+        formula=tagger_fn)
