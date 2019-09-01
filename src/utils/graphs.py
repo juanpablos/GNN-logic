@@ -165,7 +165,7 @@ def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
         # return if each node is a red node or not
         return individual_condition, 1
     # no existance condition -> all nodes are 0
-    return np.zeros(features.shape[0]), 0
+    return np.zeros(features.shape[0]).astype(int), 0
 
 
 if __name__ == "__main__":
@@ -184,7 +184,7 @@ if __name__ == "__main__":
         p=0.01,  # random.random(),
         # file_input="MUTAG.txt",
         file_output="colors1.txt")
-    # tagger(
-    #     input_file="colors1.txt",
-    #     output_file="colors1_labeled.txt",
-    #     formula=tagger_fn)
+    tagger(
+        input_file="colors1.txt",
+        output_file="colors1_labeled.txt",
+        formula=tagger_fn)
