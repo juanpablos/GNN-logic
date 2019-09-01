@@ -20,15 +20,21 @@ def train(args, model, device, train_graphs, optimizer, epoch):
 
     loss_accum = 0
     for pos in pbar:
+        # TODO: change this to sample directly from train_graphs
         selected_idx = np.random.permutation(len(train_graphs))[
             :args.batch_size]
 
         batch_graph = [train_graphs[idx] for idx in selected_idx]
+        # ! output should be (batches, nodes) matrix with property as value
         output = model(batch_graph)
 
+        # TODO: change this to graph node labels
         labels = torch.LongTensor(
             [graph.label for graph in batch_graph]).to(device)
 
+        # TODO: this should be BCEWithLogitsLoss
+        # torch.nn.BCEWithLogitsLoss(reduction='sum|mean')
+        # compute loss per node, then sum
         # compute loss
         loss = criterion(output, labels)
 
@@ -38,8 +44,7 @@ def train(args, model, device, train_graphs, optimizer, epoch):
             optimizer.step()
             optimizer.zero_grad()
 
-        loss = loss.detach().cpu().numpy()
-        loss_accum += loss
+        loss_accum += loss.detach().cpu().numpy()
 
         # report
         pbar.set_description('epoch: %d' % (epoch))
@@ -55,6 +60,7 @@ def train(args, model, device, train_graphs, optimizer, epoch):
 def pass_data_iteratively(model, graphs, minibatch_size=64):
     model.eval()
     output = []
+    # TODO: again, change this with a sample
     idx = np.arange(len(graphs))
     for i in range(0, len(graphs), minibatch_size):
         sampled_idx = idx[i:i + minibatch_size]
@@ -68,12 +74,17 @@ def test(args, model, device, train_graphs, test_graphs, epoch):
     model.eval()
 
     output = pass_data_iteratively(model, train_graphs)
+    # TODO: change this for nodes
+    # should be a (batches, nodes) matrix
+    # dont use max, maybe just check >= 0.5
     pred = output.max(1, keepdim=True)[1]
+    # TODO: again, need nodes
     labels = torch.LongTensor(
         [graph.label for graph in train_graphs]).to(device)
     correct = pred.eq(labels.view_as(pred)).sum().cpu().item()
     acc_train = correct / float(len(train_graphs))
 
+    # TODO: same
     output = pass_data_iteratively(model, test_graphs)
     pred = output.max(1, keepdim=True)[1]
     labels = torch.LongTensor(
@@ -86,14 +97,13 @@ def test(args, model, device, train_graphs, test_graphs, epoch):
     return acc_train, acc_test
 
 
-def main():
+def argument_parser():
     # Training settings
     # Note: Hyper-parameters need to be tuned in order to obtain results
     # reported in the paper.
-    parser = argparse.ArgumentParser(
-        description='PyTorch graph convolutional neural net for whole-graph classification')
-    parser.add_argument('--dataset', type=str, default="MUTAG",
-                        help='name of dataset (default: MUTAG)')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset', type=str,
+                        help='data to read')
     parser.add_argument('--device', type=int, default=0,
                         help='which gpu to use if any (default: 0)')
     parser.add_argument('--batch_size', type=int, default=32,
@@ -111,12 +121,7 @@ def main():
         '--seed',
         type=int,
         default=0,
-        help='random seed for splitting the dataset into 10 (default: 0)')
-    parser.add_argument(
-        '--fold_idx',
-        type=int,
-        default=0,
-        help='the index of fold in 10-fold validation. Should be less then 10.')
+        help='random seed (default: 0)')
     parser.add_argument(
         '--num_layers',
         type=int,
@@ -132,15 +137,15 @@ def main():
     parser.add_argument('--final_dropout', type=float, default=0.5,
                         help='final layer dropout (default: 0.5)')
     parser.add_argument(
-        '--graph_pooling_type',
+        '--readout',
         type=str,
         default="sum",
         choices=[
             "sum",
             "average"],
-        help='Pooling for over nodes in a graph: sum or average')
+        help='Pooling for over all nodes in a graph: sum or average')
     parser.add_argument(
-        '--neighbor_pooling_type',
+        '--aggregate',
         type=str,
         default="sum",
         choices=[
@@ -149,32 +154,45 @@ def main():
             "max"],
         help='Pooling for over neighboring nodes: sum, average or max')
     parser.add_argument(
+        '--combine',
+        type=str,
+        default="trainable",
+        choices=[
+            "sum",
+            "average",
+            "max",
+            "trainable"],
+        help='Reduction of the aggregation: sum, average, max or trainable')
+    parser.add_argument(
         '--learn_eps',
         action="store_true",
         help='Whether to learn the epsilon weighting for the center nodes. Does not affect training accuracy though.')
-    parser.add_argument(
-        '--degree_as_tag',
-        action="store_true",
-        help='let the input node features be the degree of nodes (heuristics for unlabeled graph)')
-    parser.add_argument('--filename', type=str, default="",
+    parser.add_argument('--filename', type=str, default="training.log",
                         help='output file')
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    args = argument_parser().parse_args()
 
     # set up seeds and gpu device
-    torch.manual_seed(0)
-    np.random.seed(0)
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+
     device = torch.device("cuda:" + str(args.device)
                           ) if torch.cuda.is_available() else torch.device("cpu")
     if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(0)
+        torch.cuda.manual_seed_all(args.seed)
 
-    # num_classes -> graph classes, no node classes
-    graphs, num_classes = load_data(args.dataset, args.degree_as_tag)
+    # list of graphs, (number of label classes for the graph, number of
+    # feature classes for nodes, number of label classes for the nodes)
+    graphs, (n_graph_classes, n_node_features, n_node_labels) = load_data(
+        args.dataset, args.degree_as_tag)
 
-    # 10-fold cross validation. Conduct an experiment on the fold
-    # specified by args.fold_idx.
+    # TODO: simple train/split
     train_graphs, test_graphs = separate_data(graphs, args.seed, args.fold_idx)
 
+    # TODO: adapt inputs
     model = GraphCNN(
         args.num_layers,
         args.num_mlp_layers,
@@ -192,9 +210,9 @@ def main():
 
     if not args.filename == "":
         with open(args.filename, 'w') as f:
-            f.write("Epoch\tLoss\tTrain\tTest")
-            f.write("\n")
+            f.write("Epoch\tLoss\tTrain\tTest\n")
 
+    # `epoch` is only for printing purposes
     for epoch in range(1, args.epochs + 1):
         scheduler.step()
 
@@ -205,8 +223,7 @@ def main():
         if not args.filename == "":
             with open(args.filename, 'a') as f:
                 f.write(
-                    f"{epoch}\t{avg_loss:.3f}\t{acc_train:.3f}\t{acc_test:.3f}")
-                f.write("\n")
+                    f"{epoch}\t{avg_loss:.4f}\t{acc_train:.4f}\t{acc_test:.4f}\n")
 
 
 if __name__ == '__main__':
