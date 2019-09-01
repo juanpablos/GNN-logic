@@ -3,8 +3,7 @@ from typing import Dict, List, Tuple, Union
 import networkx as nx
 import numpy as np
 import torch
-from networkx.algorithms.assortativity import neighbor_degree
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import train_test_split
 from torch.jit.annotations import TensorType
 
 
@@ -195,25 +194,15 @@ def load_data(dataset: str,
         (len(graph_label_dict), len(node_features), len(node_labels))
 
 
-def separate_data(graph_list: List[S2VGraph],
-                  seed: int,
-                  fold_idx) -> Tuple[List[S2VGraph],
-                                     List[S2VGraph]]:
-    assert 0 <= fold_idx < 10, "fold_idx must be from 0 to 9."
-    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=seed)
+def separate_data(graph_list: List[S2VGraph], seed: int,
+                  test_size: float = 0.2) -> Tuple[List[S2VGraph],
+                                                   List[S2VGraph]]:
 
-    labels = [graph.label for graph in graph_list]
-    idx_list = []
-    # placeholder: np.zeros(len(labels)) -> vector of n_labels 0s
-    for idx in skf.split(np.zeros(len(labels)), labels):
-        idx_list.append(idx)
-        print(idx)
-    train_idx, test_idx = idx_list[fold_idx]
-
-    train_graph_list = [graph_list[i] for i in train_idx]
-    test_graph_list = [graph_list[i] for i in test_idx]
-
-    return train_graph_list, test_graph_list
+    return train_test_split(
+        graph_list,
+        random_state=seed,
+        test_size=test_size,
+        shuffle=True)
 
 
 if __name__ == "__main__":

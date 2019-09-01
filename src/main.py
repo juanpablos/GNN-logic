@@ -1,18 +1,23 @@
-import argparse
-
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
+from typing import List
 
-from models.graphcnn import GraphCNN
+from models.acgnn import ACGNN
+from utils.argparser import argument_parser
 from utils.util import load_data, separate_data
 
-criterion = nn.CrossEntropyLoss()
 
-
-def train(args, model, device, train_graphs, optimizer, epoch):
+def train(
+        args,
+        model: nn.Module,
+        device: torch.device,
+        train_graphs: List[S2VGraph],
+        optimizer,
+        criterion,
+        epoch: int) -> float:
     model.train()
 
     total_iters = args.iters_per_epoch
@@ -97,81 +102,6 @@ def test(args, model, device, train_graphs, test_graphs, epoch):
     return acc_train, acc_test
 
 
-def argument_parser():
-    # Training settings
-    # Note: Hyper-parameters need to be tuned in order to obtain results
-    # reported in the paper.
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str,
-                        help='data to read')
-    parser.add_argument('--device', type=int, default=0,
-                        help='which gpu to use if any (default: 0)')
-    parser.add_argument('--batch_size', type=int, default=32,
-                        help='input batch size for training (default: 32)')
-    parser.add_argument(
-        '--iters_per_epoch',
-        type=int,
-        default=50,
-        help='number of iterations per each epoch (default: 50)')
-    parser.add_argument('--epochs', type=int, default=350,
-                        help='number of epochs to train (default: 350)')
-    parser.add_argument('--lr', type=float, default=0.01,
-                        help='learning rate (default: 0.01)')
-    parser.add_argument(
-        '--seed',
-        type=int,
-        default=0,
-        help='random seed (default: 0)')
-    parser.add_argument(
-        '--num_layers',
-        type=int,
-        default=5,
-        help='number of layers INCLUDING the input one (default: 5)')
-    parser.add_argument(
-        '--num_mlp_layers',
-        type=int,
-        default=2,
-        help='number of layers for MLP EXCLUDING the input one (default: 2). 1 means linear model.')
-    parser.add_argument('--hidden_dim', type=int, default=64,
-                        help='number of hidden units (default: 64)')
-    parser.add_argument('--final_dropout', type=float, default=0.5,
-                        help='final layer dropout (default: 0.5)')
-    parser.add_argument(
-        '--readout',
-        type=str,
-        default="sum",
-        choices=[
-            "sum",
-            "average"],
-        help='Pooling for over all nodes in a graph: sum or average')
-    parser.add_argument(
-        '--aggregate',
-        type=str,
-        default="sum",
-        choices=[
-            "sum",
-            "average",
-            "max"],
-        help='Pooling for over neighboring nodes: sum, average or max')
-    parser.add_argument(
-        '--combine',
-        type=str,
-        default="trainable",
-        choices=[
-            "sum",
-            "average",
-            "max",
-            "trainable"],
-        help='Reduction of the aggregation: sum, average, max or trainable')
-    parser.add_argument(
-        '--learn_eps',
-        action="store_true",
-        help='Whether to learn the epsilon weighting for the center nodes. Does not affect training accuracy though.')
-    parser.add_argument('--filename', type=str, default="training.log",
-                        help='output file')
-    return parser
-
-
 def main():
     args = argument_parser().parse_args()
 
@@ -189,22 +119,34 @@ def main():
     graphs, (n_graph_classes, n_node_features, n_node_labels) = load_data(
         args.dataset, args.degree_as_tag)
 
-    # TODO: simple train/split
-    train_graphs, test_graphs = separate_data(graphs, args.seed, args.fold_idx)
+    if args.task_type == "node":
+        num_classes = n_node_labels
+    else:
+        raise NotImplementedError()
 
-    # TODO: adapt inputs
-    model = GraphCNN(
-        args.num_layers,
-        args.num_mlp_layers,
-        train_graphs[0].node_features.shape[1],
-        args.hidden_dim,
-        num_classes,
-        args.final_dropout,
-        args.learn_eps,
-        args.graph_pooling_type,
-        args.neighbor_pooling_type,
-        device).to(device)
+    train_graphs, test_graphs = separate_data(graphs, args.seed)
 
+    if args.network == "acgnn":
+        _model = ACGNN
+    else:
+        raise NotImplementedError()
+
+    model = _model(
+        num_layers=args.num_layers,
+        num_mlp_layers=args.num_mlp_layers,
+        input_dim=train_graphs[0].node_features.shape[1],
+        hidden_dim=args.hidden_dim,
+        output_dim=num_classes,
+        final_dropout=args.final_dropout,
+        learn_eps=args.learn_eps,
+        combine_type=args.combine,
+        aggregate_type=args.aggregate,
+        readout_type=args.readout,
+        recursive_readout=args.recursive_readout,
+        task=args.task_type,
+        device=device).to(device)
+
+    criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 
@@ -216,7 +158,14 @@ def main():
     for epoch in range(1, args.epochs + 1):
         scheduler.step()
 
-        avg_loss = train(args, model, device, train_graphs, optimizer, epoch)
+        avg_loss = train(
+            args=args,
+            model=model,
+            device=device,
+            train_graphs=train_graphs,
+            optimizer=optimizer,
+            criterion=criterion,
+            epoch=epoch)
         acc_train, acc_test = test(
             args, model, device, train_graphs, test_graphs, epoch)
 

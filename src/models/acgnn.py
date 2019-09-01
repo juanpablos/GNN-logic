@@ -6,19 +6,23 @@ import torch.nn.functional as F
 from .mlp import MLP
 
 
-class GraphCNN(nn.Module):
+class ACGNN(nn.Module):
     def __init__(
             self,
-            num_layers,
-            num_mlp_layers,
-            input_dim,
-            hidden_dim,
-            output_dim,
-            final_dropout,
-            learn_eps,
-            graph_pooling_type,
-            neighbor_pooling_type,
-            device):
+            num_layers: int,
+            num_mlp_layers: int,
+            input_dim: int,
+            hidden_dim: int,
+            output_dim: int,
+            final_dropout: float,
+            learn_eps: bool,
+            combine_type: str,
+            aggregate_type: str,
+            readout_type: str,
+            recursive_readout: bool,
+            task: str,
+            device: torch.device,
+    ):
         '''
             num_layers: number of layers in the neural networks (INCLUDING the input layer)
             num_mlp_layers: number of layers in mlps (EXCLUDING the input layer)
@@ -32,7 +36,7 @@ class GraphCNN(nn.Module):
             device: which device to use
         '''
 
-        super(GraphCNN, self).__init__()
+        super(ACGNN, self).__init__()
 
         self.final_dropout = final_dropout
         self.device = device
