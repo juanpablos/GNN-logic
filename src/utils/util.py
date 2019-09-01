@@ -39,11 +39,14 @@ class S2VGraph(object):
 
         self.aux_node_label_mapping: Dict[int, int] = None
 
+# TODO: label indices are set by appearance order. Should implement fixed
+# ! classes such that they actually represent their index.
+
 
 def load_data(dataset: str,
               degree_as_node_label: bool = False,
-              graph_type: int = 2) -> Tuple[List[S2VGraph],
-                                            Tuple[int, int, int]]:
+              graph_type: int = 2,) -> Tuple[List[S2VGraph],
+                                             Tuple[int, int, int]]:
 
     if graph_type == 1:
         raise NotImplementedError()
@@ -55,10 +58,11 @@ def load_data(dataset: str,
     node_labels: Dict[int, int] = {}
     node_features: Dict[int, int] = {}
 
-    with open(dataset, 'r') as f:
-        n_graphs = int(f.readline().strip())
+    with open(dataset, 'r') as in_file:
+        n_graphs = int(in_file.readline().strip())
         for _ in range(n_graphs):
-            n_nodes, graph_label = map(int, f.readline().strip().split(" "))
+            n_nodes, graph_label = map(
+                int, in_file.readline().strip().split(" "))
             # register graph label (not really important)
             if graph_label not in graph_label_dict:
                 # index the graph_label
@@ -78,18 +82,18 @@ def load_data(dataset: str,
 
                 # n_features, [features], node label, n_edges, [neighbours]
                 # TODO: only work for categorical node features
-                node_row = list(map(int, f.readline().strip().split(" ")))
+                node_row = list(
+                    map(int, in_file.readline().strip().split(" ")))
 
+                # ---- FEATURES ----
                 # first comes the number of features
                 n_features = node_row[0]
                 # if n_features > max_features:
                 #     max_features = n_features
-
-                # ---- FEATURES ----
                 features = []
                 if n_features != 0:
                     # get all features, column 1 to n_features-1
-                    features = node_row[1:n_features]
+                    features = node_row[1:n_features + 1]
                 # we need the index of each featur
                 _features = []
                 for f in features:
