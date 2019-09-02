@@ -39,7 +39,6 @@ class ACGNN(GNN):
         # pooling neighboring nodes and center nodes altogether
         aggregated = self.aggregate(h=h, aux_data=aux_data)
         h = self.combine(x1=h, x2=aggregated, layer=layer)
-        # ? h = F.relu(h)
         return h
 
     def _GNN__functional_combine(self, x1, x2, function="max", **kwargs):
@@ -58,18 +57,6 @@ class ACGNN(GNN):
         else:
             raise ValueError()
 
-    def _GNN__trainable_combine(
-            self,
-            x1,
-            x2,
-            layer,
-            activation="relu",
-            **kwargs):
-        inner = self.V[layer](x1) + self.A[layer](x2)
+    def _GNN__trainable_combine(self, x1, x2, layer, **kwargs):
         # ? + self.b[layer].unsqueeze(dim=0)
-
-        # TODO: dropout?
-        if activation == "relu":
-            return F.relu(inner)
-        else:
-            raise NotImplementedError()
+        return self.V[layer](x1) + self.A[layer](x2)

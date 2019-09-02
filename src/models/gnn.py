@@ -194,23 +194,9 @@ class GNN(nn.Module):
         else:
             raise ValueError()
 
-    def __trainable_combine(
-            self,
-            x1,
-            x2,
-            x3,
-            layer,
-            activation="relu",
-            **kwargs):
-        inner = self.V[layer](x1) + self.A[layer](x2) + self.R[layer](x3)
+    def __trainable_combine(self, x1, x2, x3, layer, **kwargs):
         # ? + self.b[layer].unsqueeze(dim=0)
-
-        # TODO: dropout?
-        # TODO: remove this relu and put it in _next_layer?
-        if activation == "relu":
-            return F.relu(inner)
-        else:
-            raise NotImplementedError()
+        return self.V[layer](x1) + self.A[layer](x2) + self.R[layer](x3)
 
     def __preprocess_neighbors_maxpool(self, batch_graph):
         # create padded_neighbor_list in concatenated graph
