@@ -68,10 +68,6 @@ def argument_parser():
             "max",
             "trainable"],
         help='Reduction of the aggregation: sum, average, max or trainable')
-    parser.add_argument(
-        '--learn_eps',
-        action="store_true",
-        help='Whether to learn the epsilon weighting for the center nodes. Does not affect training accuracy though.')
     parser.add_argument('--filename', type=str, default="training.log",
                         help='output file')
     parser.add_argument(

@@ -17,7 +17,6 @@ class GNN(nn.Module):
             hidden_dim: int,
             output_dim: int,
             final_dropout: float,
-            learn_eps: bool,
             combine_type: str,
             aggregate_type: str,
             readout_type: str,
@@ -31,9 +30,6 @@ class GNN(nn.Module):
         self.final_dropout = final_dropout
         self.device = device
         self.num_layers = num_layers
-        self.learn_eps = learn_eps
-        # ? should we support this? Center node weighting
-        self.eps = nn.Parameter(torch.zeros(self.num_layers - 1))
 
         self.recursive_weighting = recursive_weighting
         self.task = task
@@ -44,7 +40,7 @@ class GNN(nn.Module):
 
         self.node_preprocess = self.__preprocess_neighbors_maxpool if aggregate_type == "max" else self.__preprocess_neighbors_sumavgpool
 
-        self.compute_layer = self._next_layer_eps if learn_eps else self._next_layer
+        self.compute_layer = self._next_layer
 
         # Linear function that maps the hidden representation
         # for each network layer.
@@ -221,8 +217,8 @@ class GNN(nn.Module):
                 # TODO: does this count as combine?
                 # Add center nodes in the maxpooling if learn_eps is False,
                 # i.e., aggregate center nodes and neighbor nodes altogether.
-                if not self.learn_eps:
-                    pad.append(j + start_idx[i])
+                pad.append(j + start_idx[i])
+                # ----
 
                 padded_neighbors.append(pad)
             padded_neighbor_list.extend(padded_neighbors)
@@ -243,21 +239,18 @@ class GNN(nn.Module):
         # TODO: does this count as combine?
         # Add self-loops in the adjacency matrix if learn_eps is False, i.e.,
         # aggregate center nodes and neighbor nodes altogether.
-        if not self.learn_eps:
-            num_node = start_idx[-1]
-            self_loop_edge = torch.LongTensor(
-                [range(num_node), range(num_node)])
-            elem = torch.ones(num_node)
-            Adj_block_idx = torch.cat([Adj_block_idx, self_loop_edge], 1)
-            Adj_block_elem = torch.cat([Adj_block_elem, elem], 0)
+        num_node = start_idx[-1]
+        self_loop_edge = torch.LongTensor(
+            [range(num_node), range(num_node)])
+        elem = torch.ones(num_node)
+        Adj_block_idx = torch.cat([Adj_block_idx, self_loop_edge], 1)
+        Adj_block_elem = torch.cat([Adj_block_elem, elem], 0)
+        # ----
 
         Adj_block = torch.sparse.FloatTensor(
             Adj_block_idx, Adj_block_elem, torch.Size([start_idx[-1], start_idx[-1]]))
 
         return Adj_block.to(self.device)
-
-    def _next_layer_eps(self, h, layer, aux_data):
-        raise NotImplementedError()
 
     def _next_layer(self, h, layer, aux_data):
         raise NotImplementedError()

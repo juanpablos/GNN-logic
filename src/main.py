@@ -148,7 +148,6 @@ def main():
         hidden_dim=args.hidden_dim,
         output_dim=num_classes,
         final_dropout=args.final_dropout,
-        learn_eps=args.learn_eps,
         combine_type=args.combine,
         aggregate_type=args.aggregate,
         readout_type=args.readout,
