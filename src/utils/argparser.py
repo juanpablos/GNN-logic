@@ -46,7 +46,8 @@ def argument_parser():
         default="sum",
         choices=[
             "sum",
-            "average"],
+            "average",
+            "max"],
         help='Pooling for over all nodes in a graph: sum or average')
     parser.add_argument(
         '--aggregate',
@@ -82,9 +83,9 @@ def argument_parser():
             "acgnn"],
         help='Type of GNN to use. a=Aggregate, c=Combine, r=Readout')
     parser.add_argument(
-        '--recursive_readout',
+        '--recursive_weighting',
         action="store_true",
-        help='Whether the readout operation should be performed on all layers instead of just on the last one.')
+        help='Whether the prediction operation should be performed based on all layers instead of just on the last one.')
     parser.add_argument(
         '--task_type',
         type=str,

@@ -142,7 +142,7 @@ def main():
         combine_type=args.combine,
         aggregate_type=args.aggregate,
         readout_type=args.readout,
-        recursive_readout=args.recursive_readout,
+        recursive_weighting=args.recursive_weighting,
         task=args.task_type,
         device=device).to(device)
 
