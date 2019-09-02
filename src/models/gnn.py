@@ -231,11 +231,7 @@ class GNN(nn.Module):
                 # padding, dummy data is assumed to be stored in -1
                 pad.extend([-1] * (max_deg - len(pad)))
 
-                # TODO: does this count as combine?
-                # Add center nodes in the maxpooling if learn_eps is False,
-                # i.e., aggregate center nodes and neighbor nodes altogether.
-                pad.append(j + start_idx[i])
-                # ----
+                # * dont include central nodes, combine is done separately
 
                 padded_neighbors.append(pad)
             padded_neighbor_list.extend(padded_neighbors)
@@ -253,16 +249,7 @@ class GNN(nn.Module):
         Adj_block_idx = torch.cat(edge_mat_list, 1)
         Adj_block_elem = torch.ones(Adj_block_idx.shape[1])
 
-        # TODO: does this count as combine?
-        # Add self-loops in the adjacency matrix if learn_eps is False, i.e.,
-        # aggregate center nodes and neighbor nodes altogether.
-        num_node = start_idx[-1]
-        self_loop_edge = torch.LongTensor(
-            [range(num_node), range(num_node)])
-        elem = torch.ones(num_node)
-        Adj_block_idx = torch.cat([Adj_block_idx, self_loop_edge], 1)
-        Adj_block_elem = torch.cat([Adj_block_elem, elem], 0)
-        # ----
+       # * dont include central nodes, combine is done separately
 
         Adj_block = torch.sparse.FloatTensor(
             Adj_block_idx, Adj_block_elem, torch.Size([start_idx[-1], start_idx[-1]]))
