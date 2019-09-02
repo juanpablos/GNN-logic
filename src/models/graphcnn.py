@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from .mlp import MLP
 
 
-class ACGNN(nn.Module):
+class GraphCNN(nn.Module):
     def __init__(
             self,
             num_layers: int,
@@ -36,7 +36,7 @@ class ACGNN(nn.Module):
             device: which device to use
         '''
 
-        super(ACGNN, self).__init__()
+        super(GraphCNN, self).__init__()
 
         self.final_dropout = final_dropout
         self.device = device
