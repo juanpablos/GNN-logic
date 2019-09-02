@@ -154,8 +154,10 @@ class GNN(nn.Module):
         # x2: node aggregations, shape (nodes, features)
         # x3: graph readout, shape (1, features)
         # TODO: allow for weighted sum/mean
+        # same memory allocations, only references
+        expanded_x3 = x3.expand(x1.size())
         combined = torch.cat(
-            [x1.unsqueeze(0), x2.unsqueeze(0), x3.unsqueeze(0)])
+            [x1.unsqueeze(0), x2.unsqueeze(0), expanded_x3.unsqueeze(0)])
         if function == "max":
             combined, _ = torch.max(combined, dim=0)
             return combined
