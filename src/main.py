@@ -40,7 +40,9 @@ def train(
         labels = []
         for graph in batch_graph:
             labels.extend(graph.node_labels)
-        labels = torch.tensor(labels, dtype=torch.long).to(device)
+        labels = torch.tensor(labels, dtype=torch.long).unsqueeze(dim=1)
+        labels = torch.zeros_like(output).scatter_(
+            dim=1, index=labels, src=1.).to(device)
 
         print(output, "\n", labels, "\n\n\n")
 
@@ -154,7 +156,7 @@ def main():
         task=args.task_type,
         device=device).to(device)
 
-    criterion = nn.CrossEntropyLoss(reduction='sum')
+    criterion = nn.BCEWithLogitsLoss(reduction='sum')
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 
