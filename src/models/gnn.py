@@ -149,7 +149,7 @@ class GNN(nn.Module):
         else:
             return torch.sum(h, dim=0, keepdim=True)
 
-    def __functional_combine(self, x1, x2, x3, function="max"):
+    def __functional_combine(self, x1, x2, x3, function="max", **kwargs):
         # x1: node representations, shape (nodes, features)
         # x2: node aggregations, shape (nodes, features)
         # x3: graph readout, shape (1, features)
@@ -165,7 +165,14 @@ class GNN(nn.Module):
         else:
             raise ValueError()
 
-    def __trainable_combine(self, x1, x2, x3, layer, activation="relu"):
+    def __trainable_combine(
+            self,
+            x1,
+            x2,
+            x3,
+            layer,
+            activation="relu",
+            **kwargs):
         inner = x1.matmul(self.V[layer]) + x2.matmul(self.A[layer]) + \
             x3.matmul(self.R[layer])  # ? + self.b[layer].unsqueeze(dim=0)
 
