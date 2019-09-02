@@ -4,8 +4,6 @@ from functools import partial
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import matmul
-from torch.onnx.symbolic_opset9 import unsqueeze
 
 from .mlp import MLP
 

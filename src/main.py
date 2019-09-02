@@ -1,13 +1,15 @@
+from typing import List
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-from typing import List
 
-from models.acgnn import ACGNN
 from utils.argparser import argument_parser
 from utils.util import load_data, separate_data
+
+from .models.acgnn import ACGNN
 
 
 def train(
