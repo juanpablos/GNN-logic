@@ -73,6 +73,11 @@ class GNN(nn.Module):
         # ? self.b = torch.nn.ModuleList()
 
     def __get_combine_fn(self, combine_type):
+        # return a funtion that takes 3 parameters
+        # the hidden representetion of the node: x1
+        # the aggregated representation of its neighbors: x2
+        # the readpout of the whole graph: x3
+        # returns a tensor of the same dimensions of x1|x2
         options = {
             "sum": partial(self.__functional_combine, function="sum"),
             "average": partial(self.__functional_combine, function="average"),
@@ -97,6 +102,10 @@ class GNN(nn.Module):
         return options[aggregate_type]
 
     def __get_readout_fn(self, readout_type):
+        # returns a funtion that performs a full graph aggregation
+        # takes all node's representations as input and returns a single
+        # vector of size (1, n_features), that is the combination of
+        # the hidden representations of all nodes in the graph
         options = {
             "sum": partial(self.__graph_sumavgpool, average=False),
             "average": partial(self.__graph_sumavgpool, average=True),
@@ -106,13 +115,17 @@ class GNN(nn.Module):
         return options[readout_type]
 
     def __node_maxpool(self, h, aux_data):
-        # TODO: review this
         # aux_data must be a padded neighbor list for each node in the batch,
         # each node must be indexed by their graph index.
 
         # Return has shape (nodes, features)
+        # just use this to assign to the -1 neighbors -> padding
+        # TODO: this count as combine?
         dummy, _ = torch.min(h, dim=0)
+        # append the min to assign as -1 padding
         h_with_dummy = torch.cat([h, dummy.reshape((1, -1)).to(self.device)])
+        # take the representation for each node's neighbors. Assign the min to
+        # the -1 padding then take the max for each node (pool the neighbors)
         pooled_rep, _ = torch.max(h_with_dummy[aux_data], dim=1)
         return pooled_rep
 
@@ -180,6 +193,7 @@ class GNN(nn.Module):
         # ? + self.b[layer].unsqueeze(dim=0)
 
         # TODO: dropout?
+        # TODO: remove this relu and put it in _next_layer?
         if activation == "relu":
             return F.relu(inner)
         else:
@@ -204,6 +218,7 @@ class GNN(nn.Module):
                 # padding, dummy data is assumed to be stored in -1
                 pad.extend([-1] * (max_deg - len(pad)))
 
+                # TODO: does this count as combine?
                 # Add center nodes in the maxpooling if learn_eps is False,
                 # i.e., aggregate center nodes and neighbor nodes altogether.
                 if not self.learn_eps:
@@ -225,9 +240,9 @@ class GNN(nn.Module):
         Adj_block_idx = torch.cat(edge_mat_list, 1)
         Adj_block_elem = torch.ones(Adj_block_idx.shape[1])
 
+        # TODO: does this count as combine?
         # Add self-loops in the adjacency matrix if learn_eps is False, i.e.,
         # aggregate center nodes and neighbor nodes altogether.
-
         if not self.learn_eps:
             num_node = start_idx[-1]
             self_loop_edge = torch.LongTensor(
@@ -268,7 +283,8 @@ class GNN(nn.Module):
                 # ? weight every layer and then sum?
                 raise NotImplementedError()
             else:
-                return self.linear_predictions[-1](h)
+                # TODO: activation function? sigmoid?
+                return F.sigmoid(self.linear_predictions[-1](h))
 
         elif self.task == "graph":
             raise NotImplementedError()

@@ -42,6 +42,8 @@ def train(
             labels.extend(graph.node_labels)
         labels = torch.tensor(labels, dtype=torch.long).to(device)
 
+        print(output, "\n", labels, "\n\n\n")
+
         loss = criterion(output, labels)
 
         # backprop

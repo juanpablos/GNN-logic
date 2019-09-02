@@ -36,6 +36,7 @@ class GIN(GNN):
                                   recursive_weighting=recursive_weighting,
                                   task=task,
                                   device=device)
+        # TODO: move this up to GNN, this is standard weighting
         # List of MLPs
         self.mlps = torch.nn.ModuleList()
         # List of batchnorms applied to the output of MLP
