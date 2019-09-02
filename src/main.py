@@ -85,23 +85,29 @@ def test(args, model, device, train_graphs, test_graphs, epoch):
 
     output = pass_data_iteratively(model, train_graphs)
     _, predicted_labels = output.max(1, keepdim=True)
+
     labels = []
     for graph in train_graphs:
         labels.extend(graph.node_labels)
     labels = torch.tensor(labels, dtype=torch.long).to(device)
+
     correct = predicted_labels.eq(
         labels.view_as(predicted_labels)).sum().cpu().item()
-    acc_train = correct / float(len(train_graphs))
+
+    acc_train = correct / float(len(labels))
 
     output = pass_data_iteratively(model, test_graphs)
     _, predicted_labels = output.max(1, keepdim=True)
+
     labels = []
     for graph in test_graphs:
         labels.extend(graph.node_labels)
     labels = torch.tensor(labels, dtype=torch.long).to(device)
+
     correct = predicted_labels.eq(
         labels.view_as(predicted_labels)).sum().cpu().item()
-    acc_test = correct / float(len(test_graphs))
+
+    acc_test = correct / float(len(labels))
 
     print("accuracy train: %f test: %f" % (acc_train, acc_test))
 
@@ -159,7 +165,7 @@ def main():
 
     if not args.filename == "":
         with open(args.filename, 'w') as f:
-            f.write("Epoch\tLoss\tTrain\tTest\n")
+            f.write("Epoch,Loss,Train,Test\n")
 
     # `epoch` is only for printing purposes
     for epoch in range(1, args.epochs + 1):
@@ -179,7 +185,7 @@ def main():
         if not args.filename == "":
             with open(args.filename, 'a') as f:
                 f.write(
-                    f"{epoch}\t{avg_loss:.4f}\t{acc_train:.4f}\t{acc_test:.4f}\n")
+                    f"{epoch},{avg_loss:.4f},{acc_train:.4f},{acc_test:.4f}\n")
 
 
 if __name__ == '__main__':
