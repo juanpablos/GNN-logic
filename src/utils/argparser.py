@@ -61,12 +61,13 @@ def argument_parser():
     parser.add_argument(
         '--combine',
         type=str,
-        default="trainable",
+        default="weighted_trainable",
         choices=[
             "sum",
             "average",
             "max",
-            "trainable"],
+            "weighted_trainable",
+            "mlp"],
         help='Reduction of the aggregation: sum, average, max or trainable')
     parser.add_argument('--filename', type=str, default="training.log",
                         help='output file')

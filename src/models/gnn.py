@@ -44,14 +44,9 @@ class GNN(nn.Module):
         # preprocess depends on the aggregation type
         self.node_preprocess = self.__preprocess_neighbors_maxpool if aggregate_type == "max" else self.__preprocess_neighbors_sumavgpool
 
-        # List of MLPs
-        self.mlps = torch.nn.ModuleList()
-        # List of batchnorms applied to the output of MLP
-        # This are the weights for each layer
+        # Batch norms applied to the combied representation
         self.batch_norms = torch.nn.ModuleList()
         for layer in range(self.num_layers):
-            self.mlps.append(
-                MLP(num_mlp_layers, input_dim, hidden_dim, input_dim))
             self.batch_norms.append(nn.BatchNorm1d(input_dim))
 
         # Linear function that maps the hidden representation for each network
@@ -67,10 +62,9 @@ class GNN(nn.Module):
                     self.linear_predictions.append(
                         nn.Linear(hidden_dim, output_dim))
         else:
-            self.linear_predictions.append(
-                nn.Linear(input_dim, output_dim))
+            self.linear_predictions.append(nn.Linear(input_dim, output_dim))
 
-        if combine_type == "trainable":
+        if combine_type == "weighted_trainable":
             self.V = torch.nn.ModuleList()
             self.A = torch.nn.ModuleList()
             self.R = torch.nn.ModuleList()
@@ -79,6 +73,13 @@ class GNN(nn.Module):
                 self.A.append(nn.Linear(input_dim, input_dim))
                 self.R.append(nn.Linear(input_dim, input_dim))
             # ? self.b = torch.nn.ModuleList()
+
+        # If the combine type is MLP
+        if combine_type == "mlp":
+            self.mlps = torch.nn.ModuleList()
+            for layer in range(self.num_layers):
+                self.mlps.append(
+                    MLP(num_mlp_layers, 2 * input_dim + 1, hidden_dim, input_dim))
 
     def __get_combine_fn(self, combine_type):
         # return a funtion that takes 3 parameters
@@ -90,7 +91,8 @@ class GNN(nn.Module):
             "sum": partial(self.__functional_combine, function="sum"),
             "average": partial(self.__functional_combine, function="average"),
             "max": partial(self.__functional_combine, function="max"),
-            "trainable": self.__trainable_combine}
+            "weighted_trainable": self.__trainable_combine,
+            "mlp": self.__mlp_combine}
         if combine_type not in options:
             raise ValueError()
         return options[combine_type]
@@ -128,8 +130,7 @@ class GNN(nn.Module):
 
         # Return has shape (nodes, features)
         # just use this to assign to the -1 neighbors -> padding
-        # TODO: this count as combine?
-        dummy, _ = torch.min(h, dim=0)
+        dummy = torch.tensor([-float("inf")] * h.size()[1])
         # append the min to assign as -1 padding
         h_with_dummy = torch.cat([h, dummy.reshape((1, -1)).to(self.device)])
         # take the representation for each node's neighbors. Assign the min to
@@ -190,8 +191,20 @@ class GNN(nn.Module):
             raise ValueError()
 
     def __trainable_combine(self, x1, x2, x3, layer, **kwargs):
+        # x1: node representations, shape (nodes, features)
+        # x2: node aggregations, shape (nodes, features)
+        # x3: graph readout, shape (1, features)
         # ? + self.b[layer].unsqueeze(dim=0)
         return self.V[layer](x1) + self.A[layer](x2) + self.R[layer](x3)
+
+    def __mlp_combine(self, x1, x2, x3, layer, **kwargs):
+        # x1: node representations, shape (nodes, features)
+        # x2: node aggregations, shape (nodes, features)
+        # x3: graph readout, shape (1, features)
+        # TODO: ask if this is just concat
+        combined = torch.cat([x1, x2, x3])
+        h = self.mlps[layer](combined)
+        return h
 
     def __preprocess_neighbors_maxpool(self, batch_graph):
         # create padded_neighbor_list in concatenated graph
@@ -221,7 +234,6 @@ class GNN(nn.Module):
 
     def __preprocess_neighbors_sumavgpool(self, batch_graph):
         # create block diagonal sparse matrix
-
         edge_mat_list = []
         start_idx = [0]
         for i, graph in enumerate(batch_graph):
@@ -255,10 +267,13 @@ class GNN(nn.Module):
 
             combined_rep = self.compute_layer(
                 h=h, layer=layer, aux_data=aux_data)
-            h = self.mlps[layer](combined_rep)
             h = self.batch_norms[layer](h)
+            # TODO: meter en compute
             h = torch.relu(h)
             # hidden_rep.append(h)
+
+            # TODO ac MLP
+            # TODO acr nuestro combine
 
         if self.task == "node":
             if self.recursive_weighting:
@@ -269,6 +284,7 @@ class GNN(nn.Module):
                 if self.training:
                     return self.linear_predictions[-1](h)
                 else:
+                    # TODO: sacar en poner en testing
                     return torch.sigmoid(self.linear_predictions[-1](h))
 
         elif self.task == "graph":

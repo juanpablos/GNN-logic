@@ -175,13 +175,13 @@ if __name__ == "__main__":
 
     g_l = generator(
         distribution=None,
-        n=3,
-        min_nodes=3,
-        max_nodes=5,
+        n=150,
+        min_nodes=10,
+        max_nodes=100,
         structure_fn=nx.erdos_renyi_graph,
-        n_colors=3,
+        n_colors=10,
         random_state=seed,
-        p=1,  # random.random(),
+        p=0.01,  # random.random(),
         # file_input="MUTAG.txt",
         file_output="test.txt")
     tagger(
