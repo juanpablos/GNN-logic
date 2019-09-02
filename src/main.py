@@ -25,22 +25,21 @@ def train(
 
     loss_accum = 0
     for pos in pbar:
-        # TODO: change this to sample directly from train_graphs
-        selected_idx = np.random.permutation(len(train_graphs))[
-            :args.batch_size]
 
-        batch_graph = [train_graphs[idx] for idx in selected_idx]
-        # ! output should be (batches, nodes) matrix with property as value
+        batch_graph = np.random.choice(
+            train_graphs, size=args.batch_size, replace=False)
+        # TODO: output should be (batch_nodes, property)
+        # batches_nodes -> all nodes in the batch
+        # (sum(n_nodes(graph), classes), for graph in batch
         output = model(batch_graph)
 
-        # TODO: change this to graph node labels
-        labels = torch.LongTensor(
-            [graph.label for graph in batch_graph]).to(device)
+        # get the real node labels (nodes) vector
+        # (sum(n_nodes(graph)), for graph in batch
+        labels = []
+        for graph in batch_graph:
+            labels.extend(graph.node_labels)
+        labels = torch.tensor(labels, dtype=torch.long).to(device)
 
-        # TODO: this should be BCEWithLogitsLoss
-        # torch.nn.BCEWithLogitsLoss(reduction='sum|mean')
-        # compute loss per node, then sum
-        # compute loss
         loss = criterion(output, labels)
 
         # backprop
@@ -65,7 +64,6 @@ def train(
 def pass_data_iteratively(model, graphs, minibatch_size=64):
     model.eval()
     output = []
-    # TODO: again, change this with a sample
     idx = np.arange(len(graphs))
     for i in range(0, len(graphs), minibatch_size):
         sampled_idx = idx[i:i + minibatch_size]
@@ -79,22 +77,24 @@ def test(args, model, device, train_graphs, test_graphs, epoch):
     model.eval()
 
     output = pass_data_iteratively(model, train_graphs)
-    # TODO: change this for nodes
-    # should be a (batches, nodes) matrix
-    # dont use max, maybe just check >= 0.5
-    pred = output.max(1, keepdim=True)[1]
-    # TODO: again, need nodes
-    labels = torch.LongTensor(
-        [graph.label for graph in train_graphs]).to(device)
-    correct = pred.eq(labels.view_as(pred)).sum().cpu().item()
+    _, predicted_labels = output.max(1, keepdim=True)
+    labels = []
+    for graph in train_graphs:
+        labels.extend(graph.node_labels)
+    labels = torch.tensor(labels, dtype=torch.long).to(device)
+    correct = predicted_labels.eq(
+        labels.view_as(predicted_labels)).sum().cpu().item()
     acc_train = correct / float(len(train_graphs))
 
     # TODO: same
     output = pass_data_iteratively(model, test_graphs)
-    pred = output.max(1, keepdim=True)[1]
-    labels = torch.LongTensor(
-        [graph.label for graph in test_graphs]).to(device)
-    correct = pred.eq(labels.view_as(pred)).sum().cpu().item()
+    _, predicted_labels = output.max(1, keepdim=True)
+    labels = []
+    for graph in test_graphs:
+        labels.extend(graph.node_labels)
+    labels = torch.tensor(labels, dtype=torch.long).to(device)
+    correct = predicted_labels.eq(
+        labels.view_as(predicted_labels)).sum().cpu().item()
     acc_test = correct / float(len(test_graphs))
 
     print("accuracy train: %f test: %f" % (acc_train, acc_test))
@@ -146,7 +146,7 @@ def main():
         task=args.task_type,
         device=device).to(device)
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(reduction='sum')
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 
