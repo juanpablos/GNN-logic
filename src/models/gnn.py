@@ -34,18 +34,37 @@ class GNN(nn.Module):
         self.recursive_weighting = recursive_weighting
         self.task = task
 
+        # combine function to use
         self.combine = self.__get_combine_fn(combine_type)
+        # readout function to use
         self.readout = self.__get_readout_fn(readout_type)
+        # aggregate function to use
         self.aggregate = self.__get_aggregate_fn(aggregate_type)
 
+        # preprocess depends on the aggregation type
         self.node_preprocess = self.__preprocess_neighbors_maxpool if aggregate_type == "max" else self.__preprocess_neighbors_sumavgpool
 
+        # TODO: change name of _next_layer to compute_layer
         self.compute_layer = self._next_layer
 
-        # Linear function that maps the hidden representation
-        # for each network layer.
-        # if recursive_weighting=False only use the last representation for the
-        # readout
+        # List of MLPs
+        self.mlps = torch.nn.ModuleList()
+        # List of batchnorms applied to the output of MLP
+        # (input of the final prediction linear layer)
+        self.batch_norms = torch.nn.ModuleList()
+        for layer in range(self.num_layers - 1):
+            if layer == 0:
+                self.mlps.append(
+                    MLP(num_mlp_layers, input_dim, hidden_dim, hidden_dim))
+            else:
+                self.mlps.append(
+                    MLP(num_mlp_layers, hidden_dim, hidden_dim, hidden_dim))
+
+            self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
+
+        # Linear function that maps the hidden representation for each network
+        # layer. if recursive_weighting=False only use the last representation
+        # for the readout
         self.linear_predictions = torch.nn.ModuleList()
         if recursive_weighting:
             for layer in range(num_layers):
@@ -59,14 +78,15 @@ class GNN(nn.Module):
             self.linear_predictions.append(
                 nn.Linear(input_dim, output_dim))
 
-        self.V = torch.nn.ModuleList()
-        self.A = torch.nn.ModuleList()
-        self.R = torch.nn.ModuleList()
-        for _ in range(num_layers):
-            self.V.append(nn.Linear(input_dim, input_dim))
-            self.A.append(nn.Linear(input_dim, input_dim))
-            self.R.append(nn.Linear(input_dim, input_dim))
-        # ? self.b = torch.nn.ModuleList()
+        if combine_type == "trainable":
+            self.V = torch.nn.ModuleList()
+            self.A = torch.nn.ModuleList()
+            self.R = torch.nn.ModuleList()
+            for _ in range(num_layers):
+                self.V.append(nn.Linear(input_dim, input_dim))
+                self.A.append(nn.Linear(input_dim, input_dim))
+                self.R.append(nn.Linear(input_dim, input_dim))
+            # ? self.b = torch.nn.ModuleList()
 
     def __get_combine_fn(self, combine_type):
         # return a funtion that takes 3 parameters
@@ -267,7 +287,12 @@ class GNN(nn.Module):
         # hidden_rep = [X_concat]
         h = X_concat
         for layer in range(self.num_layers):
-            h = self.compute_layer(h=h, layer=layer, aux_data=aux_data)
+            combined_rep = self.compute_layer(
+                h=h, layer=layer, aux_data=aux_data)
+
+            h = self.mlps[layer](combined_rep)
+            h = self.batch_norms[layer](h)
+            h = F.relu(h)
             # hidden_rep.append(h)
 
         if self.task == "node":
