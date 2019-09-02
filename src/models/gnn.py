@@ -47,17 +47,12 @@ class GNN(nn.Module):
         # List of MLPs
         self.mlps = torch.nn.ModuleList()
         # List of batchnorms applied to the output of MLP
-        # (input of the final prediction linear layer)
+        # This are the weights for each layer
         self.batch_norms = torch.nn.ModuleList()
-        for layer in range(self.num_layers - 1):
-            if layer == 0:
-                self.mlps.append(
-                    MLP(num_mlp_layers, input_dim, hidden_dim, hidden_dim))
-            else:
-                self.mlps.append(
-                    MLP(num_mlp_layers, hidden_dim, hidden_dim, hidden_dim))
-
-            self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
+        for layer in range(self.num_layers):
+            self.mlps.append(
+                MLP(num_mlp_layers, input_dim, hidden_dim, input_dim))
+            self.batch_norms.append(nn.BatchNorm1d(input_dim))
 
         # Linear function that maps the hidden representation for each network
         # layer. if recursive_weighting=False only use the last representation
@@ -257,12 +252,12 @@ class GNN(nn.Module):
         # hidden_rep = [X_concat]
         h = X_concat
         for layer in range(self.num_layers):
+
             combined_rep = self.compute_layer(
                 h=h, layer=layer, aux_data=aux_data)
-
             h = self.mlps[layer](combined_rep)
             h = self.batch_norms[layer](h)
-            h = F.relu(h)
+            h = torch.relu(h)
             # hidden_rep.append(h)
 
         if self.task == "node":
@@ -274,7 +269,7 @@ class GNN(nn.Module):
                 if self.training:
                     return self.linear_predictions[-1](h)
                 else:
-                    return F.sigmoid(self.linear_predictions[-1](h))
+                    return torch.sigmoid(self.linear_predictions[-1](h))
 
         elif self.task == "graph":
             raise NotImplementedError()

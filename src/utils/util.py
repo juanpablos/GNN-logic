@@ -30,7 +30,7 @@ class S2VGraph(object):
         self.node_features: Union[List[List[int]], TensorType] = node_features
         self.node_labels: List[int] = node_labels
         self.neighbors: List[List[int]] = neighbors
-        self.max_neighbor: max_neighbor
+        self.max_neighbor: int = max_neighbor
 
         self.edge_mat: TensorType = None
 

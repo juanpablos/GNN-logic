@@ -30,7 +30,7 @@ def train(
     for pos in pbar:
 
         batch_graph = np.random.choice(
-            train_graphs, size=args.batch_size, replace=False)
+            train_graphs, size=args.batch_size, replace=True)
         # batches_nodes -> all nodes in the batch
         # (sum(n_nodes(graph), classes), for graph in batch
         output = model(batch_graph)
@@ -40,11 +40,10 @@ def train(
         labels = []
         for graph in batch_graph:
             labels.extend(graph.node_labels)
-        labels = torch.tensor(labels, dtype=torch.long).unsqueeze(dim=1)
-        labels = torch.zeros_like(output).scatter_(
-            dim=1, index=labels, src=1.).to(device)
-
-        print(output, "\n", labels, "\n\n\n")
+        labels = torch.tensor(
+            labels, dtype=torch.long).unsqueeze(
+            dim=1).to(device)
+        labels = torch.zeros_like(output).scatter_(1, labels, 1.).to(device)
 
         loss = criterion(output, labels)
 
@@ -83,6 +82,7 @@ def pass_data_iteratively(model, graphs, minibatch_size=64):
 def test(args, model, device, train_graphs, test_graphs, epoch):
     model.eval()
 
+    # --- train
     output = pass_data_iteratively(model, train_graphs)
     _, predicted_labels = output.max(1, keepdim=True)
 
@@ -96,18 +96,22 @@ def test(args, model, device, train_graphs, test_graphs, epoch):
 
     acc_train = correct / float(len(labels))
 
-    output = pass_data_iteratively(model, test_graphs)
-    _, predicted_labels = output.max(1, keepdim=True)
+    # --- test
+    if not args.no_test:
+        output = pass_data_iteratively(model, test_graphs)
+        _, predicted_labels = output.max(1, keepdim=True)
 
-    labels = []
-    for graph in test_graphs:
-        labels.extend(graph.node_labels)
-    labels = torch.tensor(labels, dtype=torch.long).to(device)
+        labels = []
+        for graph in test_graphs:
+            labels.extend(graph.node_labels)
+        labels = torch.tensor(labels, dtype=torch.long).to(device)
 
-    correct = predicted_labels.eq(
-        labels.view_as(predicted_labels)).sum().cpu().item()
+        correct = predicted_labels.eq(
+            labels.view_as(predicted_labels)).sum().cpu().item()
 
-    acc_test = correct / float(len(labels))
+        acc_test = correct / float(len(labels))
+    else:
+        acc_test = -1.
 
     print("accuracy train: %f test: %f" % (acc_train, acc_test))
 
@@ -136,7 +140,10 @@ def main():
     else:
         raise NotImplementedError()
 
-    train_graphs, test_graphs = separate_data(graphs, args.seed)
+    if args.no_test:
+        train_graphs, test_graphs = graphs, None
+    else:
+        train_graphs, test_graphs = separate_data(graphs, args.seed)
 
     if args.network == "acgnn":
         _model = ACGNN

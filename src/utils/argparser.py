@@ -94,4 +94,8 @@ def argument_parser():
         '--degree_as_label',
         action="store_true",
         help='If there are no labels, use the node degre as label.')
+    parser.add_argument(
+        '--no_test',
+        action="store_true",
+        help='Dont split train/test')
     return parser

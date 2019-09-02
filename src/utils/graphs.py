@@ -175,16 +175,16 @@ if __name__ == "__main__":
 
     g_l = generator(
         distribution=None,
-        n=150,
-        min_nodes=10,
-        max_nodes=100,
+        n=3,
+        min_nodes=3,
+        max_nodes=5,
         structure_fn=nx.erdos_renyi_graph,
-        n_colors=10,
+        n_colors=3,
         random_state=seed,
-        p=0.1,  # random.random(),
+        p=1,  # random.random(),
         # file_input="MUTAG.txt",
-        file_output="colors1.txt")
+        file_output="test.txt")
     tagger(
-        input_file="colors1.txt",
-        output_file="colors1_labeled.txt",
+        input_file="test.txt",
+        output_file="test_labeled.txt",
         formula=tagger_fn)
