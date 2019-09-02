@@ -301,8 +301,10 @@ class GNN(nn.Module):
                 # ? weight every layer and then sum?
                 raise NotImplementedError()
             else:
-                # TODO: activation function? sigmoid?
-                return F.sigmoid(self.linear_predictions[-1](h))
+                if self.training:
+                    return self.linear_predictions[-1](h)
+                else:
+                    return F.sigmoid(self.linear_predictions[-1](h))
 
         elif self.task == "graph":
             raise NotImplementedError()
