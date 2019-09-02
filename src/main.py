@@ -28,7 +28,6 @@ def train(
 
         batch_graph = np.random.choice(
             train_graphs, size=args.batch_size, replace=False)
-        # TODO: output should be (batch_nodes, property)
         # batches_nodes -> all nodes in the batch
         # (sum(n_nodes(graph), classes), for graph in batch
         output = model(batch_graph)
@@ -86,7 +85,6 @@ def test(args, model, device, train_graphs, test_graphs, epoch):
         labels.view_as(predicted_labels)).sum().cpu().item()
     acc_train = correct / float(len(train_graphs))
 
-    # TODO: same
     output = pass_data_iteratively(model, test_graphs)
     _, predicted_labels = output.max(1, keepdim=True)
     labels = []
