@@ -44,9 +44,6 @@ class GNN(nn.Module):
         # preprocess depends on the aggregation type
         self.node_preprocess = self.__preprocess_neighbors_maxpool if aggregate_type == "max" else self.__preprocess_neighbors_sumavgpool
 
-        # TODO: change name of _next_layer to compute_layer
-        self.compute_layer = self._next_layer
-
         # List of MLPs
         self.mlps = torch.nn.ModuleList()
         # List of batchnorms applied to the output of MLP
@@ -272,7 +269,7 @@ class GNN(nn.Module):
 
         return Adj_block.to(self.device)
 
-    def _next_layer(self, h, layer, aux_data):
+    def compute_layer(self, h, layer, aux_data):
         raise NotImplementedError()
 
     def forward(self, batch_graph):

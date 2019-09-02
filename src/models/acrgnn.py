@@ -34,7 +34,7 @@ class ACRGNN(GNN):
                                      task=task,
                                      device=device)
 
-    def _next_layer(self, h, layer, aux_data):
+    def compute_layer(self, h, layer, aux_data):
         # pooling neighboring nodes and center nodes altogether
         aggregated = self.aggregate(h=h, aux_data=aux_data)
         readout = self.readout(h=h)
