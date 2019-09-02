@@ -59,4 +59,5 @@ class ACGNN(GNN):
 
     def _GNN__trainable_combine(self, x1, x2, layer, **kwargs):
         # ? + self.b[layer].unsqueeze(dim=0)
-        return self.V[layer](x1) + self.A[layer](x2)
+        h = self.V[layer](x1) + self.A[layer](x2)
+        return h
