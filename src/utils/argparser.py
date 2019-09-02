@@ -95,4 +95,8 @@ def argument_parser():
             "node",
             "graph"],
         help='Task to solve, `node` or `graph` classification')
+    parser.add_argument(
+        '--degree_as_label',
+        action="store_true",
+        help='If there are no labels, use the node degre as label.')
     return parser

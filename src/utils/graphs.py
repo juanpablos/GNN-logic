@@ -181,7 +181,7 @@ if __name__ == "__main__":
         structure_fn=nx.erdos_renyi_graph,
         n_colors=10,
         random_state=seed,
-        p=0.01,  # random.random(),
+        p=0.1,  # random.random(),
         # file_input="MUTAG.txt",
         file_output="colors1.txt")
     tagger(

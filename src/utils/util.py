@@ -14,8 +14,8 @@ class S2VGraph(object):
             graph_label: int,
             node_features: List[List[int]],
             node_labels: List[int],
-            neighbours: List[List[int]],
-            max_neighbour: int
+            neighbors: List[List[int]],
+            max_neighbor: int
     ):
         """
             graph: a networkx graph
@@ -29,8 +29,8 @@ class S2VGraph(object):
         self.graph_label: int = graph_label
         self.node_features: Union[List[List[int]], TensorType] = node_features
         self.node_labels: List[int] = node_labels
-        self.neighbors: List[List[int]] = neighbours
-        self.max_neighbour: max_neighbour
+        self.neighbors: List[List[int]] = neighbors
+        self.max_neighbor: max_neighbor
 
         self.edge_mat: TensorType = None
 
@@ -67,9 +67,9 @@ def load_data(dataset: str,
 
             graph = nx.Graph()
             _nodes_label: List[int] = []
-            max_neighbours: int = 0
+            max_neighbors: int = 0
             _nodes_features: List[List[int]] = []
-            neighbour_collection = []
+            neighbor_collection = []
 
             # --- READING GRAPH ----
             # for each node in the graph
@@ -77,7 +77,7 @@ def load_data(dataset: str,
                 # add the index (starts at 0 to n_nodes-1)
                 graph.add_node(node_id)
 
-                # n_features, [features], node label, n_edges, [neighbours]
+                # n_features, [features], node label, n_edges, [neighbors]
                 # TODO: only work for categorical node features
                 node_row = list(
                     map(int, in_file.readline().strip().split(" ")))
@@ -111,20 +111,20 @@ def load_data(dataset: str,
                 _nodes_label.append(node_label)
                 # ---- /LABELS ----
 
-                # get the number of neighbours
-                n_neighbours = node_row[n_features + 2]
-                if n_neighbours > max_neighbours:
-                    max_neighbours = n_neighbours
+                # get the number of neighbors
+                n_neighbors = node_row[n_features + 2]
+                if n_neighbors > max_neighbors:
+                    max_neighbors = n_neighbors
 
                 # ---- EDGES ----
                 # get the rest, the neighbours
-                neighbours = node_row[n_features + 3:]
+                neighbors = node_row[n_features + 3:]
                 # register connections
                 # * we are assuming the graph comes well formatted and is an undirected graph
-                for neighbour in neighbours:
-                    graph.add_edge(node_id, neighbour)
+                for neighbor in neighbors:
+                    graph.add_edge(node_id, neighbor)
 
-                neighbour_collection.append(neighbours)
+                neighbor_collection.append(neighbors)
 
                 # ---- /EDGES ----
             # --- /READING GRAPH ----
@@ -136,8 +136,8 @@ def load_data(dataset: str,
                     graph_label=graph_label_dict[graph_label],
                     node_features=_nodes_features,
                     node_labels=_nodes_label,
-                    neighbours=neighbour_collection,
-                    max_neighbour=max_neighbours))
+                    neighbors=neighbor_collection,
+                    max_neighbor=max_neighbors))
 
     # add labels and edge_mat
     # for each of the graphs

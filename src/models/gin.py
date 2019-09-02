@@ -51,7 +51,7 @@ class GIN(GNN):
 
             self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
 
-    def __next_layer(self, h, layer, aux_data):
+    def _next_layer(self, h, layer, aux_data):
         # pooling neighboring nodes and center nodes altogether
 
         aggregated = self.aggregate(h=h, aux_data=aux_data)

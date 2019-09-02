@@ -35,14 +35,14 @@ class ACGNN(GNN):
                                     task=task,
                                     device=device)
 
-    def __next_layer(self, h, layer, aux_data):
+    def _next_layer(self, h, layer, aux_data):
         # pooling neighboring nodes and center nodes altogether
         aggregated = self.aggregate(h=h, aux_data=aux_data)
         h = self.combine(x1=h, x2=aggregated, layer=layer)
         # ? h = F.relu(h)
         return h
 
-    def __functional_combine(self, x1, x2, function="max", **kwargs):
+    def _GNN__functional_combine(self, x1, x2, function="max", **kwargs):
         # x1: node representations, shape (nodes, features)
         # x2: node aggregations, shape (nodes, features)
         # x3: graph readout, shape (1, features)
@@ -58,7 +58,13 @@ class ACGNN(GNN):
         else:
             raise ValueError()
 
-    def __trainable_combine(self, x1, x2, layer, activation="relu", **kwargs):
+    def _GNN__trainable_combine(
+            self,
+            x1,
+            x2,
+            layer,
+            activation="relu",
+            **kwargs):
         inner = x1.matmul(self.V[layer]) + x2.matmul(self.A[layer])
         # ? + self.b[layer].unsqueeze(dim=0)
 

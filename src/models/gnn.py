@@ -42,9 +42,9 @@ class GNN(nn.Module):
         self.readout = self.__get_readout_fn(readout_type)
         self.aggregate = self.__get_aggregate_fn(aggregate_type)
 
-        self.node_preprocess = self.__preprocess_neighbors_maxpool if aggregate_type == "max" else __preprocess_neighbors_sumavepool
+        self.node_preprocess = self.__preprocess_neighbors_maxpool if aggregate_type == "max" else self.__preprocess_neighbors_sumavepool
 
-        self.compute_layer = self.__next_layer_eps if learn_eps else self.__next_layer
+        self.compute_layer = self._next_layer_eps if learn_eps else self._next_layer
 
         # Linear function that maps the hidden representation
         # for each network layer.
@@ -77,7 +77,7 @@ class GNN(nn.Module):
             "sum": partial(self.__functional_combine, function="sum"),
             "average": partial(self.__functional_combine, function="average"),
             "max": partial(self.__functional_combine, function="max"),
-            "trainable": __trainable_combine}
+            "trainable": self.__trainable_combine}
         if combine_type not in options:
             raise ValueError()
         return options[combine_type]
@@ -193,7 +193,7 @@ class GNN(nn.Module):
         start_idx = [0]
 
         for i, graph in enumerate(batch_graph):
-            start_idx.append(start_idx[i] + len(graph.g))
+            start_idx.append(start_idx[i] + len(graph.graph))
             padded_neighbors = []
             for j in range(len(graph.neighbors)):
                 # add off-set values to the neighbor indices
@@ -217,7 +217,7 @@ class GNN(nn.Module):
         edge_mat_list = []
         start_idx = [0]
         for i, graph in enumerate(batch_graph):
-            start_idx.append(start_idx[i] + len(graph.g))
+            start_idx.append(start_idx[i] + len(graph.graph))
             edge_mat_list.append(graph.edge_mat + start_idx[i])
         Adj_block_idx = torch.cat(edge_mat_list, 1)
         Adj_block_elem = torch.ones(Adj_block_idx.shape[1])
@@ -238,10 +238,10 @@ class GNN(nn.Module):
 
         return Adj_block.to(self.device)
 
-    def __next_layer_eps(self, h, layer, aux_data):
+    def _next_layer_eps(self, h, layer, aux_data):
         raise NotImplementedError()
 
-    def __next_layer(self, h, layer, aux_data):
+    def _next_layer(self, h, layer, aux_data):
         raise NotImplementedError()
 
     def forward(self, batch_graph):

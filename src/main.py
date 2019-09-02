@@ -9,17 +9,18 @@ from tqdm import tqdm
 from utils.argparser import argument_parser
 from utils.util import load_data, separate_data
 
-from .models import *
+from models import *
 
 
 def train(
         args,
-        model: nn.Module,
-        device: torch.device,
-        train_graphs: List[S2VGraph],
+        model,
+        device,
+        train_graphs,
         optimizer,
         criterion,
-        epoch: int) -> float:
+        scheduler,
+        epoch) -> float:
     model.train()
 
     total_iters = args.iters_per_epoch
@@ -47,6 +48,7 @@ def train(
         if optimizer is not None:
             loss.backward()
             optimizer.step()
+            scheduler.step()
             optimizer.zero_grad()
 
         loss_accum += loss.detach().cpu().numpy()
@@ -117,7 +119,7 @@ def main():
     # list of graphs, (number of label classes for the graph, number of
     # feature classes for nodes, number of label classes for the nodes)
     graphs, (n_graph_classes, n_node_features, n_node_labels) = load_data(
-        args.dataset, args.degree_as_tag)
+        dataset=args.dataset, degree_as_node_label=args.degree_as_label)
 
     if args.task_type == "node":
         num_classes = n_node_labels
@@ -160,7 +162,6 @@ def main():
 
     # `epoch` is only for printing purposes
     for epoch in range(1, args.epochs + 1):
-        scheduler.step()
 
         avg_loss = train(
             args=args,
@@ -169,6 +170,7 @@ def main():
             train_graphs=train_graphs,
             optimizer=optimizer,
             criterion=criterion,
+            scheduler=scheduler,
             epoch=epoch)
         acc_train, acc_test = test(
             args, model, device, train_graphs, test_graphs, epoch)
