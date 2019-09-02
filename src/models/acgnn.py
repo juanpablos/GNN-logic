@@ -65,7 +65,7 @@ class ACGNN(GNN):
             layer,
             activation="relu",
             **kwargs):
-        inner = x1.matmul(self.V[layer]) + x2.matmul(self.A[layer])
+        inner = self.V[layer](x1) + self.A[layer](x2)
         # ? + self.b[layer].unsqueeze(dim=0)
 
         # TODO: dropout?

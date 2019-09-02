@@ -176,8 +176,8 @@ class GNN(nn.Module):
             layer,
             activation="relu",
             **kwargs):
-        inner = x1.matmul(self.V[layer]) + x2.matmul(self.A[layer]) + \
-            x3.matmul(self.R[layer])  # ? + self.b[layer].unsqueeze(dim=0)
+        inner = self.V[layer](x1) + self.A[layer](x2) + self.R[layer](x3)
+        # ? + self.b[layer].unsqueeze(dim=0)
 
         # TODO: dropout?
         if activation == "relu":
