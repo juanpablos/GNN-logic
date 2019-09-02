@@ -42,7 +42,7 @@ class GNN(nn.Module):
         self.readout = self.__get_readout_fn(readout_type)
         self.aggregate = self.__get_aggregate_fn(aggregate_type)
 
-        self.node_preprocess = self.__preprocess_neighbors_maxpool if aggregate_type == "max" else self.__preprocess_neighbors_sumavepool
+        self.node_preprocess = self.__preprocess_neighbors_maxpool if aggregate_type == "max" else self.__preprocess_neighbors_sumavgpool
 
         self.compute_layer = self._next_layer_eps if learn_eps else self._next_layer
 
@@ -154,7 +154,8 @@ class GNN(nn.Module):
         # x2: node aggregations, shape (nodes, features)
         # x3: graph readout, shape (1, features)
         # TODO: allow for weighted sum/mean
-        combined = torch.cat([x1, x2, x3], dim=0)
+        combined = torch.cat(
+            [x1.unsqueeze(0), x2.unsqueeze(0), x3.unsqueeze(0)])
         if function == "max":
             combined, _ = torch.max(combined, dim=0)
             return combined
@@ -211,7 +212,7 @@ class GNN(nn.Module):
 
         return torch.LongTensor(padded_neighbor_list)
 
-    def __preprocess_neighbors_sumavepool(self, batch_graph):
+    def __preprocess_neighbors_sumavgpool(self, batch_graph):
         # create block diagonal sparse matrix
 
         edge_mat_list = []
@@ -247,8 +248,8 @@ class GNN(nn.Module):
     def forward(self, batch_graph):
         # Stack node features -> result is a matrix of size (nodes, features)
         # nodes -> nodes in the batch
-        X_concat = torch.cat(
-            [graph.node_features for graph in batch_graph], 0).to(self.device)
+        X_concat = torch.cat([graph.node_features for graph in batch_graph], 0).type(
+            torch.FloatTensor).to(self.device)
 
         aux_data = self.node_preprocess(batch_graph)
         # list of hidden representation at each layer (including input)

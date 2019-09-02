@@ -45,9 +45,9 @@ class ACGNN(GNN):
     def _GNN__functional_combine(self, x1, x2, function="max", **kwargs):
         # x1: node representations, shape (nodes, features)
         # x2: node aggregations, shape (nodes, features)
-        # x3: graph readout, shape (1, features)
+
         # TODO: allow for weighted sum/mean
-        combined = torch.cat([x1, x2], dim=0)
+        combined = torch.cat([x1.unsqueeze(0), x2.unsqueeze(0)])
         if function == "max":
             combined, _ = torch.max(combined, dim=0)
             return combined
