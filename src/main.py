@@ -9,7 +9,7 @@ from tqdm import tqdm
 from utils.argparser import argument_parser
 from utils.util import load_data, separate_data
 
-from .models.acgnn import ACGNN
+from .models import *
 
 
 def train(
@@ -128,8 +128,12 @@ def main():
 
     if args.network == "acgnn":
         _model = ACGNN
+    elif args.network == "acgnn":
+        _model = ACRGNN
+    elif args.network == "gin":
+        _model = GIN
     else:
-        raise NotImplementedError()
+        raise ValueError()
 
     model = _model(
         num_layers=args.num_layers,
