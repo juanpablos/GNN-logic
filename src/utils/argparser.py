@@ -6,8 +6,10 @@ def argument_parser():
     # Note: Hyper-parameters need to be tuned in order to obtain results
     # reported in the paper.
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str,
-                        help='data to read')
+    parser.add_argument('--data_train', type=str,
+                        help='data to train')
+    parser.add_argument('--data_test', type=str,
+                        help='data to test')
     parser.add_argument('--device', type=int, default=0,
                         help='which gpu to use if any (default: 0)')
     parser.add_argument('--batch_size', type=int, default=32,

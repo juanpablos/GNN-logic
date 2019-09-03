@@ -67,15 +67,15 @@ def train(
 
 # pass data to model with minibatch during testing to avoid memory
 # overflow (does not perform backpropagation)
-def pass_data_iteratively(model, graphs, minibatch_size=64):
+def pass_data_iteratively(model, graphs, minibatch_size=512):
     model.eval()
     output = []
     idx = np.arange(len(graphs))
     for i in range(0, len(graphs), minibatch_size):
-        sampled_idx = idx[i:i + minibatch_size]
-        if len(sampled_idx) == 0:
+        sampled_graphs = graphs[i:i + minibatch_size]
+        if len(sampled_graphs) == 0:
             continue
-        output.append(model([graphs[j] for j in sampled_idx]).detach())
+        output.append(model(sampled_graphs))
     return torch.cat(output, 0)
 
 
@@ -91,6 +91,15 @@ def test(args, model, device, train_graphs, test_graphs, epoch):
     for graph in train_graphs:
         labels.extend(graph.node_labels)
     labels = torch.tensor(labels, dtype=torch.long).to(device)
+
+    # * Debug
+    # with open("debug.txt", 'w') as f:
+    #     f.write("PREDICTED\n")
+    #     for i in range(len(predicted_labels)):
+    #         f.write(f"{str(predicted_labels[i])}\n{str(labels[i])}")
+    #         f.write("\n\n")
+    # import sys
+    # sys.exit()
 
     correct = predicted_labels.eq(
         labels.view_as(predicted_labels)).sum().cpu().item()
@@ -134,18 +143,22 @@ def main():
 
     # list of graphs, (number of label classes for the graph, number of
     # feature classes for nodes, number of label classes for the nodes)
-    graphs, (n_graph_classes, n_node_features, n_node_labels) = load_data(
-        dataset=args.dataset, degree_as_node_label=args.degree_as_label)
+    train_graphs, (n_graph_classes, n_node_features, n_node_labels) = load_data(
+        dataset=args.data_train, degree_as_node_label=args.degree_as_label)
 
     if args.task_type == "node":
         num_classes = n_node_labels
     else:
         raise NotImplementedError()
 
-    if args.no_test:
-        train_graphs, test_graphs = graphs, None
+    if args.data_test is not None:
+        test_graphs, _ = load_data(
+            dataset=args.data_test, degree_as_node_label=args.degree_as_label)
     else:
-        train_graphs, test_graphs = separate_data(graphs, args.seed)
+        if args.no_test:
+            train_graphs, test_graphs = train_graphs, None
+        else:
+            train_graphs, test_graphs = separate_data(train_graphs, args.seed)
 
     if args.network == "acgnn":
         _model = ACGNN

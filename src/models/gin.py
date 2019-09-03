@@ -254,7 +254,7 @@ class GIN(nn.Module):
             elif not self.neighbor_pooling_type == "max" and not self.learn_eps:
                 h = self.next_layer(h, layer, Adj_block=Adj_block)
 
-            hidden_rep.append(h)
+            # hidden_rep.append(h)
 
         score_over_layer = 0
 
