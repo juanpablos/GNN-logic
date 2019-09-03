@@ -197,7 +197,7 @@ def main():
         task=args.task_type,
         device=device).to(device)
 
-    criterion = nn.BCEWithLogitsLoss(reduction='sum')
+    criterion = nn.BCEWithLogitsLoss(reduction='mean')
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 
