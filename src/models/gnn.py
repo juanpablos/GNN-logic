@@ -47,10 +47,15 @@ class GNN(nn.Module):
         # preprocess depends on the aggregation type
         self.node_preprocess = self.__preprocess_neighbors_maxpool if aggregate_type == "max" else self.__preprocess_neighbors_sumavgpool
 
+        if input_dim > hidden_dim:
+            raise ValueError(
+                "Input dim cannot be larger than the hidden dims. Increase the hidden dims to at least input dim size.")
+        self.padding = nn.ConstantPad1d((0, hidden_dim - input_dim), value=0)
+
         # Batch norms applied to the combied representation
         self.batch_norms = torch.nn.ModuleList()
         for layer in range(self.num_layers):
-            self.batch_norms.append(nn.BatchNorm1d(input_dim))
+            self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
 
         # Linear function that maps the hidden representation for each network
         # layer. if recursive_weighting=False only use the last representation
@@ -58,47 +63,44 @@ class GNN(nn.Module):
         self.linear_predictions = torch.nn.ModuleList()
         if recursive_weighting:
             for layer in range(num_layers):
-                if layer == 0:
-                    self.linear_predictions.append(
-                        nn.Linear(input_dim, output_dim))
-                else:
-                    self.linear_predictions.append(
-                        nn.Linear(hidden_dim, output_dim))
+                self.linear_predictions.append(
+                    nn.Linear(hidden_dim, output_dim))
         else:
-            self.linear_predictions.append(nn.Linear(input_dim, output_dim))
+            self.linear_predictions.append(nn.Linear(hidden_dim, output_dim))
 
         if combine_type == "trainable":
             self.V = torch.nn.ModuleList()
             self.A = torch.nn.ModuleList()
-            for _ in range(num_layers):
-                self.V.append(nn.Linear(input_dim, input_dim))
-                self.A.append(nn.Linear(input_dim, input_dim))
+            for layer in range(num_layers):
+                self.V.append(nn.Linear(hidden_dim, hidden_dim))
+                self.A.append(nn.Linear(hidden_dim, hidden_dim))
 
             if input_factor == 3:
                 self.R = torch.nn.ModuleList()
-                for _ in range(num_layers):
-                    self.R.append(nn.Linear(input_dim, input_dim))
+                for layer in range(num_layers):
+                    self.R.append(nn.Linear(hidden_dim, hidden_dim))
 
         # If the combine type is MLP
         if combine_type == "mlp":
             self.mlps = torch.nn.ModuleList()
-            # * this is needed because mlp_aggregate=concat can mean a (nodes, features*2) or a (nodes, features*3) matrix.
-            # * aggregate=sum|avg|max mean a (nodes, features) matrix
-            if mlp_aggregate == "concat":
-                mlp_input_dim = input_dim * input_factor
-            else:
-                mlp_input_dim = input_dim
-
             for layer in range(self.num_layers):
-                self.mlps.append(
-                    MLP(num_mlp_layers, mlp_input_dim, hidden_dim, input_dim))
+                # * this is needed because mlp_aggregate=concat can mean
+                # * (nodes, hidden*2) or a (nodes, hidden*3) matrix.
+                # * aggregate=sum|avg|max mean a (nodes, hidden) matrix
+                if mlp_aggregate == "concat":
+                    self.mlps.append(
+                        MLP(num_mlp_layers, hidden_dim * input_factor, hidden_dim, hidden_dim))
+                else:
+                    self.mlps.append(
+                        MLP(num_mlp_layers, hidden_dim, hidden_dim, hidden_dim))
 
     def __get_combine_fn(self, combine_type, *, mlp_aggregate=None):
         # return a funtion that takes 3 parameters
-        # the hidden representetion of the node: x1
+        # the hidden representation of the node: x1
         # the aggregated representation of its neighbors: x2
-        # the readpout of the whole graph: x3
+        # the readout of the whole graph: x3
         # returns a tensor of the same dimensions of x1|x2
+        # * return dimension (nodes, hidden)
         options = {
             "sum": partial(self.__functional_combine, function="sum"),
             "average": partial(self.__functional_combine, function="average"),
@@ -111,10 +113,9 @@ class GNN(nn.Module):
 
     def __get_aggregate_fn(self, aggregate_type):
         # this should return a function that takes the hidden representation of each node and the neighbors for each node.
-        # It should return a new representation, composed by all
-        # neighbours of the node. (it does not combine it with the current
-        # node, that is the combine function. This function just aggregates the
-        # neighbor nodes and computes a new representation).
+        # It should return a new representation, composed by all neighbours of the node.
+        # (it does not combine it with the current node, that is the combine function. This function just aggregates the neighbor nodes and computes a new representation).
+        # * return dimension (nodes, hidden)
         options = {
             "sum": partial(self.__node_sumavgpool, average=False),
             "average": partial(self.__node_sumavgpool, average=True),
@@ -124,10 +125,11 @@ class GNN(nn.Module):
         return options[aggregate_type]
 
     def __get_readout_fn(self, readout_type):
-        # returns a funtion that performs a full graph aggregation
+        # returns a funtion that performs a full graph aggregation.
         # takes all node's representations as input and returns a single
-        # vector of size (1, n_features), that is the combination of
+        # vector representation, that is the combination of
         # the hidden representations of all nodes in the graph
+        # * return dimension (1, hidden)
         options = {
             "sum": partial(self.__graph_sumavgpool, average=False),
             "average": partial(self.__graph_sumavgpool, average=True),
@@ -138,9 +140,8 @@ class GNN(nn.Module):
 
     def __node_maxpool(self, h, aux_data):
         # aux_data must be a padded neighbor list for each node in the batch,
-        # each node must be indexed by their graph index.
-
-        # Return has shape (nodes, features)
+        # each node must be indexed by their graph index. Padding must be -1
+        # * return dimension (nodes, hidden)
         # just use this to assign to the -1 neighbors -> padding
         dummy = torch.tensor([-float("inf")] * h.size()[1])
         # append the min to assign as -1 padding
@@ -152,18 +153,20 @@ class GNN(nn.Module):
 
     def __graph_maxpool(self, h):
         # h must be a matrix with all node representations.
-        # shape (n_batch_nodes, feature_classes)
-        # Return has shape (1, features)
+        # shape (nodes, hidden)
+        # * return dimension (1, hidden)
         pooled_rep, _ = torch.max(h, dim=0, keepdim=True)
         return pooled_rep
 
     def __node_sumavgpool(self, h, aux_data, average=False):
         # aux_data must be a adjancency matrix of dims
-        # (number of nodes, number of nodes), number of nodes in the current
+        # (nodes, nodes), number of nodes in the current
         # graph batch, indexed by their graph index
-        # * because h is an stacked matrix of features for nodes in the current batch, mutiplying with the adjancency matrix is the same as adding them.
-        # Return has shape (nodes, features)
+        # * return dimension (nodes, hidden)
 
+        # because h is an stacked matrix of hidden features for nodes in the
+        # current batch, mutiplying with the adjancency matrix is the same as
+        # adding them.
         pooled_rep = torch.spmm(aux_data, h)
 
         if average:
@@ -176,8 +179,8 @@ class GNN(nn.Module):
 
     def __graph_sumavgpool(self, h, average=False):
         # h must be a matrix with all node representations.
-        # shape (n_batch_nodes, feature_classes)
-        # Return has shape (1, features)
+        # shape (nodes, hidden)
+        # * return dimension (1, hidden)
         if average:
             return torch.mean(h, dim=0, keepdim=True)
         else:
@@ -191,15 +194,14 @@ class GNN(nn.Module):
             *,
             function="max",
             **kwargs):
-        # x1: node representations, shape (nodes, features)
-        # x2: node aggregations, shape (nodes, features)
-        # - x3: graph readout, shape (1, features)
-        # TODO: allow for weighted sum/mean
-        # same memory allocations, only references
+        # x1: node representations, shape (nodes, hidden)
+        # x2: node aggregations, shape (nodes, hidden)
+        # - x3: graph readout, shape (1, hidden)
 
         if x3 is None:
             combined = torch.cat([x1.unsqueeze(0), x2.unsqueeze(0)])
         else:
+            # same memory allocations, only references
             expanded_x3 = x3.expand(x1.size())
             combined = torch.cat(
                 [x1.unsqueeze(0), x2.unsqueeze(0), expanded_x3.unsqueeze(0)])
@@ -214,9 +216,9 @@ class GNN(nn.Module):
             raise ValueError()
 
     def __trainable_combine(self, x1, x2, x3=None, *, layer, **kwargs):
-        # x1: node representations, shape (nodes, features)
-        # x2: node aggregations, shape (nodes, features)
-        # - x3: graph readout, shape (1, features)
+        # x1: node representations, shape (nodes, hidden)
+        # x2: node aggregations, shape (nodes, hidden)
+        # - x3: graph readout, shape (1, hidden)
 
         if x3 is None:
             return self.V[layer](x1) + self.A[layer](x2)
@@ -224,9 +226,9 @@ class GNN(nn.Module):
             return self.V[layer](x1) + self.A[layer](x2) + self.R[layer](x3)
 
     def __mlp_combine(self, x1, x2, x3=None, *, layer, aggregate, **kwargs):
-        # x1: node representations, shape (nodes, features)
-        # x2: node aggregations, shape (nodes, features)
-        # - x3: graph readout, shape (1, features)
+        # x1: node representations, shape (nodes, hidden)
+        # x2: node aggregations, shape (nodes, hidden)
+        # - x3: graph readout, shape (1, hidden)
 
         if aggregate == "concat":
             if x3 is None:
@@ -238,14 +240,14 @@ class GNN(nn.Module):
             combined = self.__functional_combine(
                 x1=x1, x2=x2, x3=x3, function=aggregate)
 
-        # * combined is (nodes, features) matrix if aggregate=sum|avg|max
-        # * and (nodes, features*(2|3)) when aggregate=concat
+        # * combined is (nodes, feathiddenures) matrix if aggregate=sum|avg|max
+        # * and (nodes, hidden*(2|3)) when aggregate=concat
         h = self.mlps[layer](combined)
         return h
 
     def __preprocess_neighbors_maxpool(self, batch_graph):
+        # TODO: preprocess outside the network. Dataloader
         # create padded_neighbor_list in concatenated graph
-
         # compute the maximum number of neighbors within the graphs in the
         # current minibatch
         max_deg = max([graph.max_neighbor for graph in batch_graph])
@@ -270,6 +272,7 @@ class GNN(nn.Module):
         return torch.LongTensor(padded_neighbor_list)
 
     def __preprocess_neighbors_sumavgpool(self, batch_graph):
+        # TODO: preprocess outside the network. Dataloader
         # create block diagonal sparse matrix
         edge_mat_list = []
         start_idx = [0]
@@ -291,14 +294,15 @@ class GNN(nn.Module):
 
     def forward(self, batch_graph):
         # Stack node features -> result is a matrix of size (nodes, features)
-        # nodes -> nodes in the batch
+        # then add paddind with 0 to fit hidden_dims
+        # * (nodes, features)
         X_concat = torch.cat([graph.node_features for graph in batch_graph], 0).type(
             torch.FloatTensor).to(self.device)
+        # * (nodes, hidden), padded
+        X_concat = self.padding(X_concat)
 
         aux_data = self.node_preprocess(batch_graph)
-        # list of hidden representation at each layer (including input)
-        # TODO: recursive_weighting
-        # hidden_rep = [X_concat]
+
         h = X_concat
         for layer in range(self.num_layers):
             combined_rep = self.compute_layer(
