@@ -20,6 +20,7 @@ class GNN(nn.Module):
             combine_type: str,
             aggregate_type: str,
             readout_type: str,
+            mlp_aggregate: str,
             recursive_weighting: bool,
             task: str,
             device: torch.device
@@ -35,7 +36,8 @@ class GNN(nn.Module):
         self.task = task
 
         # combine function to use
-        self.combine = self.__get_combine_fn(combine_type)
+        self.combine = self.__get_combine_fn(
+            combine_type, mlp_aggregate=mlp_aggregate)
         # readout function to use
         self.readout = self.__get_readout_fn(readout_type)
         # aggregate function to use
@@ -79,9 +81,9 @@ class GNN(nn.Module):
             self.mlps = torch.nn.ModuleList()
             for layer in range(self.num_layers):
                 self.mlps.append(
-                    MLP(num_mlp_layers, 2 * input_dim + 1, hidden_dim, input_dim))
+                    MLP(num_mlp_layers, input_dim, hidden_dim, input_dim))
 
-    def __get_combine_fn(self, combine_type):
+    def __get_combine_fn(self, combine_type, mlp_aggregate=None):
         # return a funtion that takes 3 parameters
         # the hidden representetion of the node: x1
         # the aggregated representation of its neighbors: x2
@@ -92,7 +94,7 @@ class GNN(nn.Module):
             "average": partial(self.__functional_combine, function="average"),
             "max": partial(self.__functional_combine, function="max"),
             "weighted_trainable": self.__trainable_combine,
-            "mlp": self.__mlp_combine}
+            "mlp": partial(self.__mlp_combine, aggregate=mlp_aggregate)}
         if combine_type not in options:
             raise ValueError()
         return options[combine_type]
@@ -197,12 +199,20 @@ class GNN(nn.Module):
         # ? + self.b[layer].unsqueeze(dim=0)
         return self.V[layer](x1) + self.A[layer](x2) + self.R[layer](x3)
 
-    def __mlp_combine(self, x1, x2, x3, layer, **kwargs):
+    def __mlp_combine(self, x1, x2, x3, layer, aggregate, **kwargs):
         # x1: node representations, shape (nodes, features)
         # x2: node aggregations, shape (nodes, features)
         # x3: graph readout, shape (1, features)
-        # TODO: ask if this is just concat
-        combined = torch.cat([x1, x2, x3])
+
+        if aggregate == "concat":
+            broad_x3 = x3.expand(x1.size())
+            combined = torch.cat([x1, x2, broad_x3], dim=1)
+        else:
+            combined = self.__functional_combine(
+                x1=x1, x2=x2, x3=x3, function=aggregate)
+
+        # * combined is (nodes, features) matrix if aggregate=sum|avg|max
+        # * and (nodes, features*(2|3)) when aggregate=concat
         h = self.mlps[layer](combined)
         return h
 
@@ -264,6 +274,7 @@ class GNN(nn.Module):
         # hidden_rep = [X_concat]
         h = X_concat
         for layer in range(self.num_layers):
+            print(h.size())
             combined_rep = self.compute_layer(
                 h=h, layer=layer, aux_data=aux_data)
 

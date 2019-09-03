@@ -16,6 +16,7 @@ class ACGNN(GNN):
             combine_type: str,
             aggregate_type: str,
             readout_type: str,
+            mlp_aggregate: str,
             recursive_weighting: bool,
             task: str,
             device: torch.device
@@ -29,6 +30,7 @@ class ACGNN(GNN):
                                     combine_type=combine_type,
                                     aggregate_type=aggregate_type,
                                     readout_type=readout_type,
+                                    mlp_aggregate=mlp_aggregate,
                                     recursive_weighting=recursive_weighting,
                                     task=task,
                                     device=device)
@@ -58,13 +60,4 @@ class ACGNN(GNN):
     def _GNN__trainable_combine(self, x1, x2, layer, **kwargs):
         # ? + self.b[layer].unsqueeze(dim=0)
         h = self.V[layer](x1) + self.A[layer](x2)
-        return h
-
-    def _GNN__mlp_combine(self, x1, x2, layer, **kwargs):
-        # x1: node representations, shape (nodes, features)
-        # x2: node aggregations, shape (nodes, features)
-        # x3: graph readout, shape (1, features)
-        # TODO: ask if this is just concat
-        combined = torch.cat([x1, x2])
-        h = self.mlps[layer](combined)
         return h

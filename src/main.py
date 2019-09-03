@@ -30,7 +30,7 @@ def train(
     for pos in pbar:
 
         batch_graph = np.random.choice(
-            train_graphs, size=args.batch_size, replace=True)
+            train_graphs, size=args.batch_size, replace=False)
         # batches_nodes -> all nodes in the batch
         # (sum(n_nodes(graph), classes), for graph in batch
         output = model(batch_graph)
@@ -164,6 +164,7 @@ def main():
         combine_type=args.combine,
         aggregate_type=args.aggregate,
         readout_type=args.readout,
+        mlp_aggregate=args.mlp_combine_agg,
         recursive_weighting=args.recursive_weighting,
         task=args.task_type,
         device=device).to(device)

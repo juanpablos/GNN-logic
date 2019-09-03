@@ -68,7 +68,17 @@ def argument_parser():
             "max",
             "weighted_trainable",
             "mlp"],
-        help='Reduction of the aggregation: sum, average, max or trainable')
+        help='Reduction of the aggregation: sum, average, max, weighted_trainable or mlp')
+    parser.add_argument(
+        '--mlp_combine_agg',
+        type=str,
+        default="sum",
+        choices=[
+            "sum",
+            "average",
+            "max",
+            "concat"],
+        help='Aggregate function to use inside mlp combine')
     parser.add_argument('--filename', type=str, default="training.log",
                         help='output file')
     parser.add_argument(

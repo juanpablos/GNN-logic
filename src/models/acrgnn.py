@@ -15,6 +15,7 @@ class ACRGNN(GNN):
             combine_type: str,
             aggregate_type: str,
             readout_type: str,
+            mlp_aggregate: str,
             recursive_weighting: bool,
             task: str,
             device: torch.device
@@ -28,6 +29,7 @@ class ACRGNN(GNN):
                                      combine_type=combine_type,
                                      aggregate_type=aggregate_type,
                                      readout_type=readout_type,
+                                     mlp_aggregate=mlp_aggregate,
                                      recursive_weighting=recursive_weighting,
                                      task=task,
                                      device=device)
