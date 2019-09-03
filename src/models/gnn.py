@@ -276,11 +276,7 @@ class GNN(nn.Module):
                 # ? weight every layer and then sum?
                 raise NotImplementedError()
             else:
-                if self.training:
-                    return self.linear_predictions[-1](h)
-                else:
-                    # TODO: sacar en poner en testing
-                    return torch.sigmoid(self.linear_predictions[-1](h))
+                return self.linear_predictions[-1](h)
 
         elif self.task == "graph":
             raise NotImplementedError()

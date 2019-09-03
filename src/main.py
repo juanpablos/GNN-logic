@@ -84,6 +84,7 @@ def test(args, model, device, train_graphs, test_graphs, epoch):
 
     # --- train
     output = pass_data_iteratively(model, train_graphs)
+    output = torch.sigmoid(output)
     _, predicted_labels = output.max(1, keepdim=True)
 
     labels = []
@@ -99,6 +100,7 @@ def test(args, model, device, train_graphs, test_graphs, epoch):
     # --- test
     if not args.no_test:
         output = pass_data_iteratively(model, test_graphs)
+        output = torch.sigmoid(output)
         _, predicted_labels = output.max(1, keepdim=True)
 
         labels = []
