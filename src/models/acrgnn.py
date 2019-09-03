@@ -37,4 +37,4 @@ class ACRGNN(GNN):
         aggregated = self.aggregate(h=h, aux_data=aux_data)
         readout = self.readout(h=h)
         h = self.combine(x1=h, x2=aggregated, x3=readout, layer=layer)
-        return h
+        return torch.relu(h)

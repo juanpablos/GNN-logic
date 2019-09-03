@@ -37,7 +37,7 @@ class ACGNN(GNN):
         # pooling neighboring nodes and center nodes altogether
         aggregated = self.aggregate(h=h, aux_data=aux_data)
         h = self.combine(x1=h, x2=aggregated, layer=layer)
-        return h
+        return torch.relu(h)
 
     def _GNN__functional_combine(self, x1, x2, function="max", **kwargs):
         # x1: node representations, shape (nodes, features)
@@ -58,4 +58,13 @@ class ACGNN(GNN):
     def _GNN__trainable_combine(self, x1, x2, layer, **kwargs):
         # ? + self.b[layer].unsqueeze(dim=0)
         h = self.V[layer](x1) + self.A[layer](x2)
+        return h
+
+    def _GNN__mlp_combine(self, x1, x2, layer, **kwargs):
+        # x1: node representations, shape (nodes, features)
+        # x2: node aggregations, shape (nodes, features)
+        # x3: graph readout, shape (1, features)
+        # TODO: ask if this is just concat
+        combined = torch.cat([x1, x2])
+        h = self.mlps[layer](combined)
         return h

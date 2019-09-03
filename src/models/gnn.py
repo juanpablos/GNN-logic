@@ -264,16 +264,11 @@ class GNN(nn.Module):
         # hidden_rep = [X_concat]
         h = X_concat
         for layer in range(self.num_layers):
-
             combined_rep = self.compute_layer(
                 h=h, layer=layer, aux_data=aux_data)
-            h = self.batch_norms[layer](h)
-            # TODO: meter en compute
-            h = torch.relu(h)
-            # hidden_rep.append(h)
 
-            # TODO ac MLP
-            # TODO acr nuestro combine
+            h = self.batch_norms[layer](combined_rep)
+            # hidden_rep.append(h)
 
         if self.task == "node":
             if self.recursive_weighting:
