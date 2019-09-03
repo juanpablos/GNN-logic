@@ -48,6 +48,8 @@ class GIN(nn.Module):
         self.learn_eps = learn_eps
         self.eps = nn.Parameter(torch.zeros(self.num_layers - 1))
 
+        self.padding = nn.ConstantPad1d((0, hidden_dim - input_dim), value=0)
+
         # List of MLPs
         self.mlps = torch.nn.ModuleList()
 
@@ -55,13 +57,9 @@ class GIN(nn.Module):
         # prediction linear layer)
         self.batch_norms = torch.nn.ModuleList()
 
-        for layer in range(self.num_layers - 1):
-            if layer == 0:
-                self.mlps.append(
-                    MLP(num_mlp_layers, input_dim, hidden_dim, hidden_dim))
-            else:
-                self.mlps.append(
-                    MLP(num_mlp_layers, hidden_dim, hidden_dim, hidden_dim))
+        for layer in range(self.num_layers):
+            self.mlps.append(
+                MLP(num_mlp_layers, hidden_dim, hidden_dim, hidden_dim))
 
             self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
 
@@ -69,12 +67,8 @@ class GIN(nn.Module):
         # layers into a prediction score
         self.linears_prediction = torch.nn.ModuleList()
         for layer in range(num_layers):
-            if layer == 0:
-                self.linears_prediction.append(
-                    nn.Linear(input_dim, output_dim))
-            else:
-                self.linears_prediction.append(
-                    nn.Linear(hidden_dim, output_dim))
+            self.linears_prediction.append(
+                nn.Linear(hidden_dim, output_dim))
 
         self.task = task
 
@@ -232,6 +226,8 @@ class GIN(nn.Module):
             torch.FloatTensor).to(self.device)
         graph_pool = self.__preprocess_graphpool(batch_graph)
 
+        X_concat = self.padding(X_concat)
+
         if self.neighbor_pooling_type == "max":
             padded_neighbor_list = self.__preprocess_neighbors_maxpool(
                 batch_graph)
@@ -242,7 +238,7 @@ class GIN(nn.Module):
         hidden_rep = [X_concat]
         h = X_concat
 
-        for layer in range(self.num_layers - 1):
+        for layer in range(self.num_layers):
             if self.neighbor_pooling_type == "max" and self.learn_eps:
                 h = self.next_layer_eps(
                     h, layer, padded_neighbor_list=padded_neighbor_list)
@@ -259,7 +255,7 @@ class GIN(nn.Module):
         score_over_layer = 0
 
         if self.task == "node":
-            return h
+            return self.linear_predictions[-1](h)
         else:
             # perform pooling over all nodes in each graph in every layer
             for layer, h in enumerate(hidden_rep):
