@@ -151,6 +151,8 @@ def main():
         _model = ACGNN
     elif args.network == "acrgnn":
         _model = ACRGNN
+    elif args.network == "gin":
+        _model = GIN
     else:
         raise ValueError()
 

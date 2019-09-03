@@ -99,8 +99,9 @@ def generator(distribution: Optional[List[float]],
               n_colors: int = 10,
               random_state: int = 0,
               **kwargs) -> None:
-    if distribution is None:
-        distribution = [1. / n_colors] * n_colors
+
+    if distribution is not None:
+        assert len(distribution) == n_colors
 
     if structure_fn is not None:
         graph_list = __generate_graph(
@@ -117,7 +118,7 @@ def generator(distribution: Optional[List[float]],
         raise ValueError(
             "Must indicate a graph generator function or a filename with the graph structure")
 
-    possible_labels = list(range(len(distribution)))
+    possible_labels = list(range(n_colors))
     for graph in graph_list:
         n_nodes = len(graph)
         node_colors = np.random.choice(
@@ -158,10 +159,10 @@ def tagger(input_file: str, output_file: str, formula: Callable[[
 def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
     features = np.array(node_features)
     # green
-    existence_condition = np.any(features == 1)
+    existence_condition = np.any(features == 0)
     if existence_condition:
         # red
-        individual_condition = (features == 0).astype(int)
+        individual_condition = (features == 1).astype(int)
         # return if each node is a red node or not
         return individual_condition, 1
     # no existance condition -> all nodes are 0
@@ -169,19 +170,28 @@ def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
 
 
 if __name__ == "__main__":
-    seed = 0
+    seed = 10
     random.seed(seed)
     np.random.seed(seed)
 
+    n_graphs = 1000
+    n_nodes = 500
+
+    number_of_colors = 10
+    green_prob = 1. / number_of_colors
+
+    prob = [green_prob] + [(1. - green_prob) /
+                           (number_of_colors - 1)] * (number_of_colors - 1)
+
     g_l = generator(
-        distribution=None,
-        n=300,
-        min_nodes=30,
-        max_nodes=200,
+        distribution=prob,
+        n=n_graphs,
+        min_nodes=100,
+        max_nodes=n_nodes,
         structure_fn=nx.erdos_renyi_graph,
-        n_colors=10,
+        n_colors=number_of_colors,
         random_state=seed,
-        p=0.01,  # random.random(),
+        p=0.1,  # random.random(),
         # file_input="MUTAG.txt",
         file_output="test.txt")
     tagger(
