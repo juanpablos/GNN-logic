@@ -21,6 +21,11 @@ def argument_parser():
         help='number of iterations per each epoch (default: 50)')
     parser.add_argument('--epochs', type=int, default=350,
                         help='number of epochs to train (default: 350)')
+    parser.add_argument(
+        '--test_every',
+        type=int,
+        default=20,
+        help='run the network on the test set every `test_every` number of epochs')
     parser.add_argument('--lr', type=float, default=0.01,
                         help='learning rate (default: 0.01)')
     parser.add_argument(

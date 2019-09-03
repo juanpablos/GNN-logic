@@ -4,12 +4,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from networkx.classes.function import nodes
 from tqdm import tqdm
 
+from models import *
 from utils.argparser import argument_parser
 from utils.util import load_data, separate_data
-
-from models import *
 
 
 def train(
@@ -68,29 +68,42 @@ def train(
 # pass data to model with minibatch during testing to avoid memory
 # overflow (does not perform backpropagation)
 def pass_data_iteratively(model, graphs, minibatch_size=64):
+    def chunks(iterable, n):
+        for i in range(0, len(iterable), n):
+            yield iterable[i:i + n]
+
     model.eval()
     output = []
-    idx = np.arange(len(graphs))
-    for i in range(0, len(graphs), minibatch_size):
-        sampled_graphs = graphs[i:i + minibatch_size]
-        if len(sampled_graphs) == 0:
-            continue
-        output.append(model(sampled_graphs).detach())
-    return torch.cat(output, 0)
+    n_nodes = []
+    labels = []
+    for graph_batch in chunks(graphs, minibatch_size):
+        output.append(model(graph_batch).detach())
+        for graph in graph_batch:
+            n_nodes.append(len(graph.graph))
+            labels.extend(graph.node_labels)
+
+    return torch.cat(output, dim=0), n_nodes, np.cumsum(n_nodes), labels
 
 
-def test(args, model, device, train_graphs, test_graphs, epoch):
+def test(args, model, device, train_graphs, test_graphs, epoch, run_test):
     model.eval()
 
     # --- train
-    output = pass_data_iteratively(model, train_graphs)
+    output, n_nodes, indices, labels = pass_data_iteratively(
+        model, train_graphs)
     output = torch.sigmoid(output)
-    _, predicted_labels = output.max(1, keepdim=True)
+    _, predicted_labels = output.max(dim=1).cpu()
 
-    labels = []
-    for graph in train_graphs:
-        labels.extend(graph.node_labels)
-    labels = torch.tensor(labels, dtype=torch.long).to(device)
+    # equals both vectors, prediction == label
+    results = np.equal(predicted_labels, labels)
+
+    # micro average -> mean between all nodes
+    train_micro_avg = np.mean(results)
+
+    # split node equality by graph, we dont need the last value of `indices`
+    macro_split = np.split(results, indices[:-1])
+    # macro average -> mean between the mean of nodes for each graph
+    train_macro_avg = np.mean([np.mean(graph) for graph in macro_split])
 
     # * Debug
     # with open("debug.txt", 'w') as f:
@@ -101,32 +114,32 @@ def test(args, model, device, train_graphs, test_graphs, epoch):
     # import sys
     # sys.exit()
 
-    correct = predicted_labels.eq(
-        labels.view_as(predicted_labels)).sum().cpu().item()
-
-    acc_train = correct / float(len(labels))
-
     # --- test
+    test_micro_avg, test_macro_avg = -1, -1
     if not args.no_test:
-        output = pass_data_iteratively(model, test_graphs)
-        output = torch.sigmoid(output)
-        _, predicted_labels = output.max(1, keepdim=True)
+        if run_test:
+            output, n_nodes, indices, labels = pass_data_iteratively(
+                model, test_graphs)
+            output = torch.sigmoid(output)
+            _, predicted_labels = output.max(dim=1).cpu()
 
-        labels = []
-        for graph in test_graphs:
-            labels.extend(graph.node_labels)
-        labels = torch.tensor(labels, dtype=torch.long).to(device)
+            # equals both vectors, prediction == label
+            results = np.equal(predicted_labels, labels)
 
-        correct = predicted_labels.eq(
-            labels.view_as(predicted_labels)).sum().cpu().item()
+            # micro average -> mean between all nodes
+            test_micro_avg = np.mean(results)
 
-        acc_test = correct / float(len(labels))
-    else:
-        acc_test = -1.
+            # split node equality by graph, we dont need the last value of
+            # `indices`
+            macro_split = np.split(results, indices[:-1])
+            # macro average -> mean between the mean of nodes for each graph
+            test_macro_avg = np.mean([np.mean(graph) for graph in macro_split])
 
-    print("accuracy train: %f test: %f" % (acc_train, acc_test))
+    print(
+        f"Train accuracy: micro: {train_micro_avg}\tmacro: {train_macro_avg}")
+    print(f"Test accuracy: micro: {test_micro_avg}\tmacro: {test_macro_avg}")
 
-    return acc_train, acc_test
+    return train_micro_avg, train_macro_avg, test_micro_avg, test_macro_avg
 
 
 def main():
@@ -190,7 +203,7 @@ def main():
 
     if not args.filename == "":
         with open(args.filename, 'w') as f:
-            f.write("Epoch,Loss,Train,Test\n")
+            f.write("Epoch,Loss,train_micro,train_macro,test_micro,test_macro\n")
 
     # `epoch` is only for printing purposes
     for epoch in range(1, args.epochs + 1):
@@ -204,13 +217,19 @@ def main():
             criterion=criterion,
             scheduler=scheduler,
             epoch=epoch)
-        acc_train, acc_test = test(
-            args, model, device, train_graphs, test_graphs, epoch)
+
+        # run the test set only every 20 epochs
+        if epoch % args.test_every == 0:
+            train_micro, train_macro, test_micro, test_macro = test(
+                args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=True)
+        else:
+            train_micro, train_macro, test_micro, test_macro = test(
+                args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=False)
 
         if not args.filename == "":
             with open(args.filename, 'a') as f:
                 f.write(
-                    f"{epoch},{avg_loss:.4f},{acc_train:.4f},{acc_test:.4f}\n")
+                    f"{epoch},{avg_loss:.4f},{train_micro:.4f},{train_macro:.4f},{test_micro:.4f},{test_macro:.4f}\n")
 
 
 if __name__ == '__main__':
