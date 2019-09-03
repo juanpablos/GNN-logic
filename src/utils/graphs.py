@@ -117,7 +117,7 @@ def generator(distribution: Optional[List[float]],
         raise ValueError(
             "Must indicate a graph generator function or a filename with the graph structure")
 
-    possible_labels = list(range(n_colors))
+    possible_labels = list(range(len(distribution)))
     for graph in graph_list:
         n_nodes = len(graph)
         node_colors = np.random.choice(
@@ -175,9 +175,9 @@ if __name__ == "__main__":
 
     g_l = generator(
         distribution=None,
-        n=150,
-        min_nodes=10,
-        max_nodes=100,
+        n=300,
+        min_nodes=30,
+        max_nodes=200,
         structure_fn=nx.erdos_renyi_graph,
         n_colors=10,
         random_state=seed,
