@@ -67,7 +67,7 @@ def train(
 
 # pass data to model with minibatch during testing to avoid memory
 # overflow (does not perform backpropagation)
-def pass_data_iteratively(model, graphs, minibatch_size=512):
+def pass_data_iteratively(model, graphs, minibatch_size=64):
     model.eval()
     output = []
     idx = np.arange(len(graphs))
@@ -75,7 +75,7 @@ def pass_data_iteratively(model, graphs, minibatch_size=512):
         sampled_graphs = graphs[i:i + minibatch_size]
         if len(sampled_graphs) == 0:
             continue
-        output.append(model(sampled_graphs))
+        output.append(model(sampled_graphs).detach())
     return torch.cat(output, 0)
 
 

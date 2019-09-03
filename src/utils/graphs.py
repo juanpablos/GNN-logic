@@ -170,9 +170,10 @@ def tagger(input_file: str, output_file: str, formula: Callable[[
             graph.node[node_id]["label"] = labels[node_id]
     print("-- finished tagging")
     print("-- writting")
-    __write_graphs(graph_list, filename=output_file, write_features=["color"])
 
-    print(f"{total_tagged}/{total_nodes} nodes were tagged 1")
+    print(f"{total_tagged}/{total_nodes} nodes were tagged 1 ({total_tagged/total_nodes})")
+
+    __write_graphs(graph_list, filename=output_file, write_features=["color"])
 
 
 def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
@@ -193,12 +194,12 @@ if __name__ == "__main__":
     random.seed(seed)
     np.random.seed(seed)
 
-    n_graphs = 1000
-    n_nodes = 100
+    n_graphs = 100
+    n_nodes = 1000
 
     number_of_colors = 10
     red_prob = 0.5
-    green_prob = (1. - red_prob) / number_of_colors
+    green_prob = 0.01
 
     rest = (1. - green_prob - red_prob) / (number_of_colors - 2)
 
@@ -209,7 +210,7 @@ if __name__ == "__main__":
         n=n_graphs,
         min_nodes=int(n_nodes / 10),
         max_nodes=n_nodes,
-        structure_fn=nx.erdos_renyi_graph,
+        structure_fn=nx.fast_gnp_random_graph,
         n_colors=number_of_colors,
         random_state=seed,
         p=0.1,  # random.random(),
