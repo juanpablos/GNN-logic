@@ -13,11 +13,14 @@ def __generate_graph(n: int,
                      random_state: int = 0,
                      **kwargs) -> List[nx.Graph]:
     graph_list = []
-    for _ in range(n):
+    print("Start generating graphs")
+    for i in range(n):
+        print(f"{i}/{n} graphs generated")
         n_nodes = random.randint(min_nodes, max_nodes)
         graph = generator_fn(n=n_nodes, seed=random_state, **kwargs)
         graph_list.append(graph)
 
+    print("Finish generating graphs")
     return graph_list
 
 
@@ -118,8 +121,11 @@ def generator(distribution: Optional[List[float]],
         raise ValueError(
             "Must indicate a graph generator function or a filename with the graph structure")
 
+    print("Coloring graphs")
     possible_labels = list(range(n_colors))
-    for graph in graph_list:
+    n = len(graph_list)
+    for i, graph in enumerate(graph_list):
+        print(f"{i}/{n} graphs colored")
         n_nodes = len(graph)
         node_colors = np.random.choice(
             possible_labels, size=n_nodes, replace=True, p=distribution)
@@ -142,18 +148,31 @@ def tagger(input_file: str, output_file: str, formula: Callable[[
         output_file {str} -- name of the file to write
         formula {Callable[[List[int]], Tuple[np.array[bool], int]]} -- function that tags each node. Arguments must be `color of the nodes`. It returns a list of labels for each node and a boolean meaning if the graph has a node that satisfies the condition.
     """
+    print("Start tagging graphs")
+    print("-- reading")
     graph_list = __graph_file_reader(input_file, read_node_label=True)
 
-    for graph in graph_list:
+    n = len(graph_list)
+    total_nodes = 0
+    total_tagged = 0
+
+    for i, graph in enumerate(graph_list):
+        print(f"{i}/{n} graphs tagged")
         node_colors = [node[1] for node in graph.nodes(data="color")]
 
         labels, graph_label = formula(node_colors)
         graph.graph["label"] = graph_label
 
+        total_nodes += len(labels)
+        total_tagged += sum(labels)
+
         for node_id in graph:
             graph.node[node_id]["label"] = labels[node_id]
-
+    print("-- finished tagging")
+    print("-- writting")
     __write_graphs(graph_list, filename=output_file, write_features=["color"])
+
+    print(f"{total_tagged}/{total_nodes} nodes were tagged 1")
 
 
 def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
@@ -175,18 +194,20 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     n_graphs = 1000
-    n_nodes = 500
+    n_nodes = 100
 
     number_of_colors = 10
-    green_prob = 1. / number_of_colors
+    red_prob = 0.5
+    green_prob = (1. - red_prob) / number_of_colors
 
-    prob = [green_prob] + [(1. - green_prob) /
-                           (number_of_colors - 1)] * (number_of_colors - 1)
+    rest = (1. - green_prob - red_prob) / (number_of_colors - 2)
+
+    prob = [green_prob, red_prob] + [rest] * (number_of_colors - 2)
 
     g_l = generator(
         distribution=prob,
         n=n_graphs,
-        min_nodes=100,
+        min_nodes=int(n_nodes / 10),
         max_nodes=n_nodes,
         structure_fn=nx.erdos_renyi_graph,
         n_colors=number_of_colors,
