@@ -103,7 +103,7 @@ class GNN(nn.Module):
             "sum": partial(self.__functional_combine, function="sum"),
             "average": partial(self.__functional_combine, function="average"),
             "max": partial(self.__functional_combine, function="max"),
-            "weighted_trainable": self.__trainable_combine,
+            "trainable": self.__trainable_combine,
             "mlp": partial(self.__mlp_combine, aggregate=mlp_aggregate)}
         if combine_type not in options:
             raise ValueError()
@@ -301,7 +301,6 @@ class GNN(nn.Module):
         # hidden_rep = [X_concat]
         h = X_concat
         for layer in range(self.num_layers):
-            print(h.size())
             combined_rep = self.compute_layer(
                 h=h, layer=layer, aux_data=aux_data)
 
