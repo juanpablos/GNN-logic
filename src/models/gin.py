@@ -153,7 +153,7 @@ class GIN(nn.Module):
 
             else:
                 # sum pooling
-                elem.extend([1] * len(graph.g))
+                elem.extend([1] * len(graph.graph))
 
             idx.extend([[i, j]
                         for j in range(start_idx[i], start_idx[i + 1], 1)])
