@@ -1,35 +1,70 @@
 import random
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
 import networkx as nx
 import numpy as np
+from numpy.random import shuffle
 
 
-def __generate_graph(n: int,
+def __generate_graph(n_graphs: int,
                      generator_fn: Callable[...,
                                             nx.Graph],
                      min_nodes: int,
                      max_nodes: int,
                      random_state: int = 0,
-                     **kwargs) -> List[nx.Graph]:
+                     **kwargs) -> Generator[nx.Graph, None, None]:
     graph_list = []
     print("Start generating graphs")
-    for i in range(n):
-        print(f"{i}/{n} graphs generated")
+    for i in range(n_graphs):
+        print(f"{i}/{n_graphs} graphs generated")
         n_nodes = random.randint(min_nodes, max_nodes)
-        graph = generator_fn(n=n_nodes, seed=random_state, **kwargs)
-        graph_list.append(graph)
+        yield generator_fn(n=n_nodes, seed=random_state, **kwargs)
 
     print("Finish generating graphs")
-    return graph_list
 
 
-def __write_graphs(graphs: List[nx.Graph],
-                   filename: str = "file.txt",
-                   write_features: Optional[List[str]] = None) -> None:
+def __graph_file_reader(filename: str,
+                        read_node_label: bool) -> Generator[Union[int,
+                                                                  nx.Graph],
+                                                            None,
+                                                            None]:
+    with open(filename, 'r') as f:
+        # ! only accept format 1, described in readme.
+        # first line -> number of graphs
+        n_graphs = int(f.readline().strip())
+
+        yield n_graphs
+
+        for _ in range(n_graphs):
+            # number of nodes , graph label
+            n_nodes, graph_label = map(int, f.readline().strip().split(" "))
+            # creates the graph and with its label
+            graph = nx.Graph(label=graph_label)
+            # adds all nodes
+            graph.add_nodes_from(range(n_nodes))
+            for node_id in range(n_nodes):
+                # node label , number of edges, neighbours
+                node_row = list(map(int, f.readline().strip().split(" ")))
+                # we may ignore the node label as we are adding our own later
+                if read_node_label:
+                    node_label = node_row[0]
+                    # * we assume the label of the node represents its color
+                    graph.node[node_id]["color"] = node_label
+                n_edges = node_row[1]
+                if n_edges > 0:
+                    edges = [(node_id, other_node)
+                             for other_node in node_row[2:]]
+                    graph.add_edges_from(edges)
+
+            yield graph
+
+
+def write_graphs(graphs: Generator[Union[int, nx.Graph], None, None],
+                 filename: str = "file.txt",
+                 write_features: Optional[List[str]] = None) -> None:
     with open(filename, 'w') as f:
         # write number of graphs
-        f.write(f"{len(graphs)}\n")
+        f.write(f"{next(graphs)}\n")
 
         for graph in graphs:
             n_nodes = graph.number_of_nodes()
@@ -58,77 +93,71 @@ def __write_graphs(graphs: List[nx.Graph],
                         f"{n_features} {features} {node_attributes['label']} {n_edges} {edges}\n")
 
 
-def __graph_file_reader(filename: str,
-                        read_node_label: bool = False) -> List[nx.Graph]:
-    graph_list: List[nx.Graph] = []
-    with open(filename, 'r') as f:
-        # ! only accept format 1, described in readme.
-        # first line -> number of graphs
-        n_graphs = int(f.readline().strip())
-        for _ in range(n_graphs):
-            # number of nodes , graph label
-            n_nodes, graph_label = map(int, f.readline().strip().split(" "))
-            # creates the graph and with its label
-            graph = nx.Graph(label=graph_label)
-            # adds all nodes
-            graph.add_nodes_from(range(n_nodes))
-            for node_id in range(n_nodes):
-                # node label , number of edges, neighbours
-                node_row = list(map(int, f.readline().strip().split(" ")))
-                # we may ignore the node label as we are adding our own later
-                if read_node_label:
-                    node_label = node_row[0]
-                    # * we assume the label of the node represents its color
-                    graph.node[node_id]["color"] = node_label
-                n_edges = node_row[1]
-                if n_edges > 0:
-                    edges = [(node_id, other_node)
-                             for other_node in node_row[2:]]
-                    graph.add_edges_from(edges)
-
-            graph_list.append(graph)
-
-    return graph_list
-
-
-def generator(distribution: Optional[List[float]],
-              n: int,
+def generator(graph_distribution: List[float],
+              node_distribution: List[float],
+              number_graphs: int,
               min_nodes: int,
               max_nodes: int,
-              file_output: str,
               structure_fn: Optional[Callable[...,
                                               nx.Graph]] = None,
               file_input: Optional[str] = None,
               n_colors: int = 10,
+              force_color: Dict[int, int] = None,
               random_state: int = 0,
-              **kwargs) -> None:
-
-    if distribution is not None:
-        assert len(distribution) == n_colors
+              **kwargs) -> Generator[Union[int, nx.Graph], None, None]:
 
     if structure_fn is not None:
-        graph_list = __generate_graph(
-            n,
+        n_graph = number_graphs
+        graph_generator = __generate_graph(
+            number_graphs,
             structure_fn,
             min_nodes=min_nodes,
             max_nodes=max_nodes,
             random_state=random_state,
             **kwargs)
+
     elif file_input is not None:
-        graph_list = __graph_file_reader(
+        graph_generator = __graph_file_reader(
             filename=file_input, read_node_label=False)
+        n_graphs = next(graph_generator)
     else:
         raise ValueError(
             "Must indicate a graph generator function or a filename with the graph structure")
 
     print("Coloring graphs")
-    possible_labels = list(range(n_colors))
-    n = len(graph_list)
-    for i, graph in enumerate(graph_list):
-        print(f"{i}/{n} graphs colored")
-        n_nodes = len(graph)
-        node_colors = np.random.choice(
-            possible_labels, size=n_nodes, replace=True, p=distribution)
+    possible_colors = list(range(n_colors))
+    # TODO: support more partitions
+    # no green, green is 0
+    partition_1 = graph_distribution[0] * n_graphs
+    # al least N greens, in `force_color`
+    partition_2 = n_graphs - partition_1
+
+    yield n_graph
+
+    for i, graph in enumerate(graph_generator):
+        print(f"{i}/{n_graphs} graphs colored")
+
+        if i < partition_1:
+            # no green
+            colors = possible_colors[1:]
+
+            forced_colors = [color for color in [_color] * times
+                             for (_color, times) in force_color.items()]
+
+            node_colors = np.random.choice(
+                possible_colors,
+                size=n_nodes - len(forced_colors),
+                replace=True,
+                p=node_distribution).tolist() + forced_colors
+
+            np.random.shuffle(node_colors)
+
+        else:
+            node_colors = np.random.choice(
+                possible_colors,
+                size=n_nodes,
+                replace=True,
+                p=node_distribution)
 
         nx.set_node_attributes(graph, dict(
             zip(graph, node_colors)), name="color")
@@ -136,28 +165,35 @@ def generator(distribution: Optional[List[float]],
         # placeholder
         graph.graph["label"] = 0
 
-    __write_graphs(graph_list, filename=file_output)
+        yield graph
 
 
-def tagger(input_file: str, output_file: str, formula: Callable[[
-           List[int]], Tuple[List[bool], int]]) -> None:
+def tagger(input_file: str,
+           formula: Callable[[List[int]],
+                             Tuple[List[bool],
+                                   int]]) -> Generator[Union[int,
+                                                             nx.Graph],
+                                                       None,
+                                                       None]:
     """Make labels for all nodes based on their color
 
     Arguments:
         input_file {str} -- name of the file to tag
-        output_file {str} -- name of the file to write
         formula {Callable[[List[int]], Tuple[np.array[bool], int]]} -- function that tags each node. Arguments must be `color of the nodes`. It returns a list of labels for each node and a boolean meaning if the graph has a node that satisfies the condition.
     """
     print("Start tagging graphs")
     print("-- reading")
-    graph_list = __graph_file_reader(input_file, read_node_label=True)
 
-    n = len(graph_list)
+    reader = __graph_file_reader(input_file, read_node_label=True)
+
+    n_graphs = next(reader)
+    yield n_graphs
+
     total_nodes = 0
     total_tagged = 0
 
-    for i, graph in enumerate(graph_list):
-        print(f"{i}/{n} graphs tagged")
+    for i, graph in enumerate(reader):
+        print(f"{i}/{n_graphs} graphs tagged")
         node_colors = [node[1] for node in graph.nodes(data="color")]
 
         labels, graph_label = formula(node_colors)
@@ -168,12 +204,12 @@ def tagger(input_file: str, output_file: str, formula: Callable[[
 
         for node_id in graph:
             graph.node[node_id]["label"] = labels[node_id]
+
+        yield graph
     print("-- finished tagging")
     print("-- writting")
 
     print(f"{total_tagged}/{total_nodes} nodes were tagged 1 ({total_tagged/total_nodes})")
-
-    __write_graphs(graph_list, filename=output_file, write_features=["color"])
 
 
 def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
@@ -196,27 +232,38 @@ if __name__ == "__main__":
 
     n_graphs = 100
     n_nodes = 1000
+    n_colors = 5
 
-    number_of_colors = 10
+    # 1/2 of the graphs do not have green
+    # the other 1/2 have at least force_color[0] greens
+    graph_distribution = [0.5, 0.5]
+
+    # on the second graph split, force 1 green (0) in each graph
+    force_color = {0: 1}
+
+    # 1/2 red (1), 0.5/4 the others
     red_prob = 0.5
-    green_prob = 0.01
+    green_prob = (1. - red_prob) / (n_colors - 1)
+    others = (1. - red_prob - green_prob) / (n_colors - 2)
+    node_distribution = [green_prob, red_prob] + [others] * (n_colors - 2)
 
-    rest = (1. - green_prob - red_prob) / (number_of_colors - 2)
-
-    prob = [green_prob, red_prob] + [rest] * (number_of_colors - 2)
-
-    g_l = generator(
-        distribution=prob,
-        n=n_graphs,
+    # TODO signature
+    graph_generator = generator(
+        graph_distribution=graph_distribution,
+        node_distribution=node_distribution,
+        number_graphs=n_graphs,
         min_nodes=int(n_nodes / 10),
         max_nodes=n_nodes,
         structure_fn=nx.fast_gnp_random_graph,
-        n_colors=number_of_colors,
-        random_state=seed,
-        p=0.1,  # random.random(),
+        n_colors=n_colors,
         # file_input="MUTAG.txt",
-        file_output="test.txt")
-    tagger(
-        input_file="test.txt",
-        output_file="test_labeled.txt",
-        formula=tagger_fn)
+        random_state=seed,
+        force_color=force_color,
+        p=0.1)  # random.random()
+    write_graphs(graph_generator, filename="test.txt")
+
+    label_generator = tagger(input_file="test.txt", formula=tagger_fn)
+    write_graphs(
+        label_generator,
+        filename="test_labeled.txt",
+        write_features=["color"])
