@@ -23,6 +23,7 @@ class GNN(nn.Module):
             mlp_aggregate: str,
             recursive_weighting: bool,
             task: str,
+            mlp_input_factor: int,
             device: torch.device
     ):
 
@@ -79,9 +80,16 @@ class GNN(nn.Module):
         # If the combine type is MLP
         if combine_type == "mlp":
             self.mlps = torch.nn.ModuleList()
+            # * this is needed because mlp_aggregate=concat can mean a (nodes, features*2) or a (nodes, features*3) matrix.
+            # * aggregate=sum|avg|max mean a (nodes, features) matrix
+            if mlp_aggregate == "concat":
+                mlp_input_dim = input_dim * mlp_input_factor
+            else:
+                mlp_input_dim = input_dim
+
             for layer in range(self.num_layers):
                 self.mlps.append(
-                    MLP(num_mlp_layers, input_dim, hidden_dim, input_dim))
+                    MLP(num_mlp_layers, mlp_input_dim, hidden_dim, input_dim))
 
     def __get_combine_fn(self, combine_type, *, mlp_aggregate=None):
         # return a funtion that takes 3 parameters
@@ -216,7 +224,7 @@ class GNN(nn.Module):
     def __mlp_combine(self, x1, x2, x3=None, *, layer, aggregate, **kwargs):
         # x1: node representations, shape (nodes, features)
         # x2: node aggregations, shape (nodes, features)
-        # x3: graph readout, shape (1, features)
+        # - x3: graph readout, shape (1, features)
 
         if aggregate == "concat":
             if x3 is None:

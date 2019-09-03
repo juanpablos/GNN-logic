@@ -33,6 +33,7 @@ class ACGNN(GNN):
                                     mlp_aggregate=mlp_aggregate,
                                     recursive_weighting=recursive_weighting,
                                     task=task,
+                                    mlp_input_factor=2,
                                     device=device)
 
     def compute_layer(self, h, layer, aux_data):
