@@ -83,7 +83,7 @@ class GNN(nn.Module):
                 self.mlps.append(
                     MLP(num_mlp_layers, input_dim, hidden_dim, input_dim))
 
-    def __get_combine_fn(self, combine_type, mlp_aggregate=None):
+    def __get_combine_fn(self, combine_type, *, mlp_aggregate=None):
         # return a funtion that takes 3 parameters
         # the hidden representetion of the node: x1
         # the aggregated representation of its neighbors: x2
@@ -173,15 +173,26 @@ class GNN(nn.Module):
         else:
             return torch.sum(h, dim=0, keepdim=True)
 
-    def __functional_combine(self, x1, x2, x3, function="max", **kwargs):
+    def __functional_combine(
+            self,
+            x1,
+            x2,
+            x3=None,
+            *,
+            function="max",
+            **kwargs):
         # x1: node representations, shape (nodes, features)
         # x2: node aggregations, shape (nodes, features)
-        # x3: graph readout, shape (1, features)
+        # - x3: graph readout, shape (1, features)
         # TODO: allow for weighted sum/mean
         # same memory allocations, only references
-        expanded_x3 = x3.expand(x1.size())
-        combined = torch.cat(
-            [x1.unsqueeze(0), x2.unsqueeze(0), expanded_x3.unsqueeze(0)])
+
+        if x3 is None:
+            combined = torch.cat([x1.unsqueeze(0), x2.unsqueeze(0)])
+        else:
+            expanded_x3 = x3.expand(x1.size())
+            combined = torch.cat(
+                [x1.unsqueeze(0), x2.unsqueeze(0), expanded_x3.unsqueeze(0)])
         if function == "max":
             combined, _ = torch.max(combined, dim=0)
             return combined
@@ -192,21 +203,27 @@ class GNN(nn.Module):
         else:
             raise ValueError()
 
-    def __trainable_combine(self, x1, x2, x3, layer, **kwargs):
+    def __trainable_combine(self, x1, x2, x3=None, *, layer, **kwargs):
         # x1: node representations, shape (nodes, features)
         # x2: node aggregations, shape (nodes, features)
-        # x3: graph readout, shape (1, features)
-        # ? + self.b[layer].unsqueeze(dim=0)
-        return self.V[layer](x1) + self.A[layer](x2) + self.R[layer](x3)
+        # - x3: graph readout, shape (1, features)
 
-    def __mlp_combine(self, x1, x2, x3, layer, aggregate, **kwargs):
+        if x3 is None:
+            return self.V[layer](x1) + self.A[layer](x2)
+        else:
+            return self.V[layer](x1) + self.A[layer](x2) + self.R[layer](x3)
+
+    def __mlp_combine(self, x1, x2, x3=None, *, layer, aggregate, **kwargs):
         # x1: node representations, shape (nodes, features)
         # x2: node aggregations, shape (nodes, features)
         # x3: graph readout, shape (1, features)
 
         if aggregate == "concat":
-            broad_x3 = x3.expand(x1.size())
-            combined = torch.cat([x1, x2, broad_x3], dim=1)
+            if x3 is None:
+                combined = torch.cat([x1, x2], dim=1)
+            else:
+                broad_x3 = x3.expand(x1.size())
+                combined = torch.cat([x1, x2, broad_x3], dim=1)
         else:
             combined = self.__functional_combine(
                 x1=x1, x2=x2, x3=x3, function=aggregate)
