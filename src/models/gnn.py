@@ -23,7 +23,7 @@ class GNN(nn.Module):
             mlp_aggregate: str,
             recursive_weighting: bool,
             task: str,
-            mlp_input_factor: int,
+            input_factor: int,
             device: torch.device
     ):
 
@@ -67,15 +67,17 @@ class GNN(nn.Module):
         else:
             self.linear_predictions.append(nn.Linear(input_dim, output_dim))
 
-        if combine_type == "weighted_trainable":
+        if combine_type == "trainable":
             self.V = torch.nn.ModuleList()
             self.A = torch.nn.ModuleList()
-            self.R = torch.nn.ModuleList()
             for _ in range(num_layers):
                 self.V.append(nn.Linear(input_dim, input_dim))
                 self.A.append(nn.Linear(input_dim, input_dim))
-                self.R.append(nn.Linear(input_dim, input_dim))
-            # ? self.b = torch.nn.ModuleList()
+
+            if input_factor == 3:
+                self.R = torch.nn.ModuleList()
+                for _ in range(num_layers):
+                    self.R.append(nn.Linear(input_dim, input_dim))
 
         # If the combine type is MLP
         if combine_type == "mlp":
@@ -83,7 +85,7 @@ class GNN(nn.Module):
             # * this is needed because mlp_aggregate=concat can mean a (nodes, features*2) or a (nodes, features*3) matrix.
             # * aggregate=sum|avg|max mean a (nodes, features) matrix
             if mlp_aggregate == "concat":
-                mlp_input_dim = input_dim * mlp_input_factor
+                mlp_input_dim = input_dim * input_factor
             else:
                 mlp_input_dim = input_dim
 

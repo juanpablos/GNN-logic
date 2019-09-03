@@ -61,14 +61,14 @@ def argument_parser():
     parser.add_argument(
         '--combine',
         type=str,
-        default="weighted_trainable",
+        default="trainable",
         choices=[
             "sum",
             "average",
             "max",
-            "weighted_trainable",
+            "trainable",
             "mlp"],
-        help='Reduction of the aggregation: sum, average, max, weighted_trainable or mlp')
+        help='Reduction of the aggregation: sum, average, max, trainable or mlp')
     parser.add_argument(
         '--mlp_combine_agg',
         type=str,
