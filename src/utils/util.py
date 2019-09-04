@@ -34,7 +34,7 @@ class S2VGraph(object):
 
         self.edge_mat: TensorType = None
 
-        self.aux_node_label_mapping: Dict[int, int] = None
+        # ? self.aux_node_label_mapping: Dict[int, int] = None
 
 # TODO: label indices are set by appearance order. Should implement fixed
 # ! classes such that they actually represent their index.
@@ -169,7 +169,7 @@ def load_data(dataset: str,
         label2index = {tagset[i]: i for i in range(len(tagset))}
 
         for graph in graph_list:
-            graph.aux_node_label_mapping = label2index
+            # ? graph.aux_node_label_mapping = label2index
             indexed_features = []
             for features in graph.node_features:
                 indexed_features.append([label2index[i] for i in features])
