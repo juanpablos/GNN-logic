@@ -4,10 +4,11 @@ import os
 import matplotlib.pyplot as plt
 import pandas as pd
 
-plot_dataset = "T1"  # T1|T2|T3
+plot_dataset = "T3"  # T1|T2|T3
 plot_variable = "loss"  # loss|micro_train|macro_train|micro_test|macro_test
 
-log_files = glob.glob("./results/V2/*.log")
+#log_files = glob.glob("./results/V2/*.log")
+log_files = glob.glob("./*.log")
 dataframes = {}
 for file in log_files:
     f = file.split("\\")[-1].split(".")[0].strip()

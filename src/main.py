@@ -250,6 +250,7 @@ def main(args, data_train=None, data_test=None, n_classes=None):
 if __name__ == '__main__':
     combine = {"trainable": "T", "mlp": "MLP"}
     aggregation = {"sum": "S", "average": "A", "max": "M"}
+    # aggregation = {"max": "M"}
     readout = {"sum": "S", "average": "A", "max": "M"}
     mlp_agg = {"sum": "S"}  # , "average": "A", "max": "M", "concat": "C"}
     network = {"acrgnn"}
