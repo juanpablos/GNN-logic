@@ -255,7 +255,7 @@ class GIN(nn.Module):
         score_over_layer = 0
 
         if self.task == "node":
-            return self.linear_predictions[-1](h)
+            return self.linears_prediction[-1](h)
         else:
             # perform pooling over all nodes in each graph in every layer
             for layer, h in enumerate(hidden_rep):
