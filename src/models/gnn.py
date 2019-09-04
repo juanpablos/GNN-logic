@@ -143,7 +143,7 @@ class GNN(nn.Module):
         # each node must be indexed by their graph index. Padding must be -1
         # * return dimension (nodes, hidden)
         # just use this to assign to the -1 neighbors -> padding
-        dummy = torch.tensor([-float("inf")] * h.size()[1])
+        dummy, _ = torch.min(h, dim=0)
         # append the min to assign as -1 padding
         h_with_dummy = torch.cat([h, dummy.reshape((1, -1)).to(self.device)])
         # take the representation for each node's neighbors. Assign the min to
