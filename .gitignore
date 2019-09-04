@@ -1,6 +1,8 @@
 .vscode/
 dataset/
 .idea/
+results/
+plots/
 
 
 

@@ -251,11 +251,11 @@ if __name__ == '__main__':
     combine = {"trainable": "T", "mlp": "MLP"}
     aggregation = {"sum": "S", "average": "A", "max": "M"}
     readout = {"sum": "S", "average": "A", "max": "M"}
-    mlp_agg = {"sum": "S", "average": "A", "max": "M", "concat": "C"}
+    mlp_agg = {"sum": "S"}  # , "average": "A", "max": "M", "concat": "C"}
     network = {"acrgnn"}
-    datasets = ["T1", "T2", "T3"]
-    hidden = [16, 32, 64, 128]
-    batch = [16, 32, 64]
+    datasets = ["T3"]
+    hidden = [64]
+    batch = [32]
 
     print("Start running")
     for dataset in datasets:

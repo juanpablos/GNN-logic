@@ -7,18 +7,18 @@ import pandas as pd
 plot_dataset = "T1"  # T1|T2|T3
 plot_variable = "loss"  # loss|micro_train|macro_train|micro_test|macro_test
 
-log_files = glob.glob("./*.log")
+log_files = glob.glob("./results/V2/*.log")
 dataframes = {}
 for file in log_files:
-    f = file.strip(".\\").split(".")[0].strip()
+    f = file.split("\\")[-1].split(".")[0].strip()
     dataframes[f] = pd.read_csv(file)
 
 T = {
-    "loss": {"agg": {}, "comb": {}, "read": {}, "h": {}, "batch": {}},
-    "micro_train": {"agg": {}, "comb": {}, "read": {}, "h": {}, "batch": {}},
-    "macro_train": {"agg": {}, "comb": {}, "read": {}, "h": {}, "batch": {}},
-    "micro_test": {"agg": {}, "comb": {}, "read": {}, "h": {}, "batch": {}},
-    "macro_test": {"agg": {}, "comb": {}, "read": {}, "h": {}, "batch": {}}
+    "loss": {"agg": {}, "comb": {"mlp": {}}, "read": {}, "h": {}, "batch": {}},
+    "micro_train": {"agg": {}, "comb": {"mlp": {}}, "read": {}, "h": {}, "batch": {}},
+    "macro_train": {"agg": {}, "comb": {"mlp": {}}, "read": {}, "h": {}, "batch": {}},
+    "micro_test": {"agg": {}, "comb": {"mlp": {}}, "read": {}, "h": {}, "batch": {}},
+    "macro_test": {"agg": {}, "comb": {"mlp": {}}, "read": {}, "h": {}, "batch": {}}
 }
 
 for log, df in dataframes.items():
@@ -109,7 +109,6 @@ for log, df in dataframes.items():
             T["macro_test"]["comb"].setdefault("simple", pd.DataFrame())
             T["macro_test"]["comb"]["simple"][log] = df.test_macro
         elif comb == "combMLP":
-            T["loss"]["comb"].setdefault("mlp", {})
 
             if mlp == "mlpS":
                 T["loss"]["comb"]["mlp"].setdefault("sum", pd.DataFrame())
@@ -267,7 +266,7 @@ for plot_variable, variable_data in T.items():
 
                     p = other_data.plot(
                         figsize=(20, 10),
-                        title=f"{plot_variable} for fixed {to_plot}={_type}")
+                        title=f"{plot_variable} for fixed {to_plot}={_type} mlp={mlp_agg}")
                     if plot_variable == "loss":
                         p.set_ylim(bottom=0)
                     else:
@@ -276,7 +275,7 @@ for plot_variable, variable_data in T.items():
 
                     os.makedirs(f"./plots/{plot_variable}/", exist_ok=True)
                     fig.savefig(
-                        f"./plots/{plot_variable}-{to_plot}-{_type}-{mlp_agg}.png")
+                        f"./plots/{plot_variable}/{to_plot}-{_type}-{mlp_agg}.png")
             else:
 
                 p = data.plot(
