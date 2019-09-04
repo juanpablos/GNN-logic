@@ -92,10 +92,10 @@ def test(args, model, device, train_graphs, test_graphs, epoch, run_test):
     output, n_nodes, indices, labels = pass_data_iteratively(
         model, train_graphs)
     output = torch.sigmoid(output)
-    _, predicted_labels = output.max(dim=1).cpu()
+    _, predicted_labels = output.max(dim=1)
 
     # equals both vectors, prediction == label
-    results = np.equal(predicted_labels, labels)
+    results = np.equal(predicted_labels.cpu(), labels).numpy()
 
     # micro average -> mean between all nodes
     train_micro_avg = np.mean(results)
@@ -121,10 +121,10 @@ def test(args, model, device, train_graphs, test_graphs, epoch, run_test):
             output, n_nodes, indices, labels = pass_data_iteratively(
                 model, test_graphs)
             output = torch.sigmoid(output)
-            _, predicted_labels = output.max(dim=1).cpu()
+            _, predicted_labels = output.max(dim=1)
 
             # equals both vectors, prediction == label
-            results = np.equal(predicted_labels, labels)
+            results = np.equal(predicted_labels.cpu(), labels).numpy()
 
             # micro average -> mean between all nodes
             test_micro_avg = np.mean(results)

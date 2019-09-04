@@ -137,6 +137,7 @@ def generator(graph_distribution: List[float],
 
     for i, graph in enumerate(graph_generator):
         print(f"{i}/{n_graphs} graphs colored")
+        n_nodes = len(graph)
 
         if i < partition_1:
             # no green
@@ -238,7 +239,6 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     n_graphs = 100
-    n_nodes = 100
     n_colors = 5
 
     # 1/2 of the graphs do not have green
@@ -259,14 +259,13 @@ if __name__ == "__main__":
     others = (1. - red_prob - green_prob) / (n_colors - 2)
     node_distribution_2 = [green_prob, red_prob] + [others] * (n_colors - 2)
 
-    # TODO signature
     graph_generator = generator(
         graph_distribution=graph_distribution,
         node_distribution_1=node_distribution_1,
         node_distribution_2=node_distribution_2,
         number_graphs=n_graphs,
-        min_nodes=int(n_nodes / 10),
-        max_nodes=n_nodes,
+        min_nodes=100,
+        max_nodes=500,
         structure_fn=nx.fast_gnp_random_graph,
         n_colors=n_colors,
         # file_input="MUTAG.txt",
@@ -278,5 +277,5 @@ if __name__ == "__main__":
     label_generator = tagger(input_file="test.txt", formula=tagger_fn)
     write_graphs(
         label_generator,
-        filename="test_labeled.txt",
+        filename="T1-2.txt",
         write_features=["color"])
