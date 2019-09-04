@@ -259,6 +259,8 @@ if __name__ == '__main__':
             dataset=f"utils/{dataset}-2.txt", degree_as_node_label=False)
         for net in network:
             for combine_name, abr in combine.items():
+                if net == "gin" and combine_name == "trainable":
+                    continue
                 print(f"Running for {net}-{combine_name} in {dataset}")
                 args = argument_parser().parse_args(
                     [
