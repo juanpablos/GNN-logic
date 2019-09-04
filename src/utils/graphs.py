@@ -116,11 +116,12 @@ def generator(graph_distribution: List[float],
             max_nodes=max_nodes,
             random_state=random_state,
             **kwargs)
+        n_graphs = number_graphs
 
     elif file_input is not None:
         graph_generator = __graph_file_reader(
             filename=file_input, read_node_label=False)
-        number_graphs = next(graph_generator)
+        n_graphs = next(graph_generator)
     else:
         raise ValueError(
             "Must indicate a graph generator function or a filename with the graph structure")
@@ -129,7 +130,7 @@ def generator(graph_distribution: List[float],
     possible_colors = list(range(n_colors))
     # TODO: support more partitions
     # no green, green is 0
-    partition_1 = graph_distribution[0] * number_graphs
+    partition_1 = graph_distribution[0] * n_graphs
     # al least N greens, in `force_color`
     partition_2 = n_graphs - partition_1
 
@@ -234,11 +235,10 @@ def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
 
 
 if __name__ == "__main__":
-    seed = 10
+    seed = 42
     random.seed(seed)
     np.random.seed(seed)
 
-    n_graphs = 100
     n_colors = 5
 
     # 1/2 of the graphs do not have green
@@ -263,19 +263,40 @@ if __name__ == "__main__":
         graph_distribution=graph_distribution,
         node_distribution_1=node_distribution_1,
         node_distribution_2=node_distribution_2,
-        number_graphs=n_graphs,
-        min_nodes=100,
-        max_nodes=500,
+        number_graphs=1000,
+        min_nodes=10,
+        max_nodes=100,
         structure_fn=nx.fast_gnp_random_graph,
         n_colors=n_colors,
         # file_input="MUTAG.txt",
         random_state=seed,
         force_color=force_color,
-        p=0.1)  # random.random()
+        p=0.3)  # random.random()
     write_graphs(graph_generator, filename="test.txt")
 
     label_generator = tagger(input_file="test.txt", formula=tagger_fn)
     write_graphs(
         label_generator,
-        filename="T1-2.txt",
+        filename="T2-1.txt",
+        write_features=["color"])
+
+    graph_generator = generator(
+        graph_distribution=graph_distribution,
+        node_distribution_1=node_distribution_1,
+        node_distribution_2=node_distribution_2,
+        number_graphs=100,
+        min_nodes=10,
+        max_nodes=100,
+        structure_fn=nx.fast_gnp_random_graph,
+        n_colors=n_colors,
+        # file_input="MUTAG.txt",
+        random_state=seed,
+        force_color=force_color,
+        p=0.3)  # random.random()
+    write_graphs(graph_generator, filename="test.txt")
+
+    label_generator = tagger(input_file="test.txt", formula=tagger_fn)
+    write_graphs(
+        label_generator,
+        filename="T2-2.txt",
         write_features=["color"])
