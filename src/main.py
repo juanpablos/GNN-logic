@@ -142,9 +142,7 @@ def test(args, model, device, train_graphs, test_graphs, epoch, run_test):
     return train_micro_avg, train_macro_avg, test_micro_avg, test_macro_avg
 
 
-def main():
-    args = argument_parser().parse_args()
-
+def main(args, data_train=None, data_test=None, n_classes=None):
     # set up seeds and gpu device
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -154,24 +152,37 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
 
-    # list of graphs, (number of label classes for the graph, number of
-    # feature classes for nodes, number of label classes for the nodes)
-    train_graphs, (n_graph_classes, n_node_features, n_node_labels) = load_data(
-        dataset=args.data_train, degree_as_node_label=args.degree_as_label)
+    if data_train is None:
+        # list of graphs, (number of label classes for the graph, number of
+        # feature classes for nodes, number of label classes for the nodes)
+        train_graphs, (n_graph_classes, n_node_features, n_node_labels) = load_data(
+            dataset=args.data_train, degree_as_node_label=args.degree_as_label)
+    else:
+        print("Using preloaded data")
+        train_graphs = data_train
 
     if args.task_type == "node":
-        num_classes = n_node_labels
+        if n_classes is None:
+            num_classes = n_node_labels
+        else:
+            print("Using preloaded data")
+            num_classes = n_classes
     else:
         raise NotImplementedError()
 
-    if args.data_test is not None:
-        test_graphs, _ = load_data(
-            dataset=args.data_test, degree_as_node_label=args.degree_as_label)
-    else:
-        if args.no_test:
-            train_graphs, test_graphs = train_graphs, None
+    if data_test is None:
+        if args.data_test is not None:
+            test_graphs, _ = load_data(
+                dataset=args.data_test, degree_as_node_label=args.degree_as_label)
         else:
-            train_graphs, test_graphs = separate_data(train_graphs, args.seed)
+            if args.no_test:
+                train_graphs, test_graphs = train_graphs, None
+            else:
+                train_graphs, test_graphs = separate_data(
+                    train_graphs, args.seed)
+    else:
+        print("Using preloaded data")
+        test_graphs = data_test
 
     if args.network == "acgnn":
         _model = ACGNN
@@ -233,4 +244,34 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    combine = {"trainable": "T", "mlp": "M"}
+    network = {"acgnn", "acrgnn", "gin"}
+    datasets = ["T1", "T2"]
+
+    print("Start running")
+    for dataset in datasets:
+        print(f"Start for dataset {dataset}")
+
+        train_graphs, (_, _, n_node_labels) = load_data(
+            dataset=f"utils/{dataset}-1.txt", degree_as_node_label=False)
+
+        test_graphs, _ = load_data(
+            dataset=f"utils/{dataset}-2.txt", degree_as_node_label=False)
+        for net in network:
+            for combine_name, abr in combine.items():
+                print(f"Running for {net}-{combine_name} in {dataset}")
+                args = argument_parser().parse_args(
+                    [
+                        "--readout=average",
+                        "--aggregate=sum",
+                        f"--combine={combine_name}",
+                        f"--network={net}",
+                        "--mlp_combine_agg=sum",
+                        f"--filename={dataset}-{net}-{abr}.log",
+                        "--epochs=100",
+                    ])
+                main(
+                    args,
+                    data_train=train_graphs,
+                    data_test=test_graphs,
+                    n_classes=n_node_labels)
