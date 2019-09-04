@@ -235,7 +235,7 @@ def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
 
 
 if __name__ == "__main__":
-    seed = 42
+    seed = 0
     random.seed(seed)
     np.random.seed(seed)
 
@@ -263,7 +263,7 @@ if __name__ == "__main__":
         graph_distribution=graph_distribution,
         node_distribution_1=node_distribution_1,
         node_distribution_2=node_distribution_2,
-        number_graphs=1000,
+        number_graphs=10,
         min_nodes=10,
         max_nodes=100,
         structure_fn=nx.fast_gnp_random_graph,
@@ -277,14 +277,14 @@ if __name__ == "__main__":
     label_generator = tagger(input_file="test.txt", formula=tagger_fn)
     write_graphs(
         label_generator,
-        filename="T2-1.txt",
+        filename="T3-1.txt",
         write_features=["color"])
 
     graph_generator = generator(
         graph_distribution=graph_distribution,
         node_distribution_1=node_distribution_1,
         node_distribution_2=node_distribution_2,
-        number_graphs=100,
+        number_graphs=10,
         min_nodes=10,
         max_nodes=100,
         structure_fn=nx.fast_gnp_random_graph,
@@ -298,5 +298,5 @@ if __name__ == "__main__":
     label_generator = tagger(input_file="test.txt", formula=tagger_fn)
     write_graphs(
         label_generator,
-        filename="T2-2.txt",
+        filename="T3-2.txt",
         write_features=["color"])
