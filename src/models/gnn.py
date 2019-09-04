@@ -3,6 +3,7 @@ from functools import partial
 
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 
 from .mlp import MLP
 
@@ -172,6 +173,8 @@ class GNN(nn.Module):
             # If average pooling
             degree = torch.spmm(
                 aux_data, torch.ones((aux_data.shape[0], 1)).to(self.device))
+            degree[degree == 0.0] = 1
+
             pooled_rep = pooled_rep / degree
 
         return pooled_rep
