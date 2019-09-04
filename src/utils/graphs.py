@@ -35,7 +35,8 @@ def __graph_file_reader(filename: str,
 
         yield n_graphs
 
-        for _ in range(n_graphs):
+        for i in range(n_graphs):
+            print(f"{i}/{n_graphs} graphs read")
             # number of nodes , graph label
             n_nodes, graph_label = map(int, f.readline().strip().split(" "))
             # creates the graph and with its label
@@ -94,7 +95,8 @@ def write_graphs(graphs: Generator[Union[int, nx.Graph], None, None],
 
 
 def generator(graph_distribution: List[float],
-              node_distribution: List[float],
+              node_distribution_1: List[float],
+              node_distribution_2: List[float],
               number_graphs: int,
               min_nodes: int,
               max_nodes: int,
@@ -107,7 +109,6 @@ def generator(graph_distribution: List[float],
               **kwargs) -> Generator[Union[int, nx.Graph], None, None]:
 
     if structure_fn is not None:
-        n_graph = number_graphs
         graph_generator = __generate_graph(
             number_graphs,
             structure_fn,
@@ -119,7 +120,7 @@ def generator(graph_distribution: List[float],
     elif file_input is not None:
         graph_generator = __graph_file_reader(
             filename=file_input, read_node_label=False)
-        n_graphs = next(graph_generator)
+        number_graphs = next(graph_generator)
     else:
         raise ValueError(
             "Must indicate a graph generator function or a filename with the graph structure")
@@ -128,11 +129,11 @@ def generator(graph_distribution: List[float],
     possible_colors = list(range(n_colors))
     # TODO: support more partitions
     # no green, green is 0
-    partition_1 = graph_distribution[0] * n_graphs
+    partition_1 = graph_distribution[0] * number_graphs
     # al least N greens, in `force_color`
     partition_2 = n_graphs - partition_1
 
-    yield n_graph
+    yield number_graphs
 
     for i, graph in enumerate(graph_generator):
         print(f"{i}/{n_graphs} graphs colored")
@@ -141,23 +142,25 @@ def generator(graph_distribution: List[float],
             # no green
             colors = possible_colors[1:]
 
-            forced_colors = [color for color in [_color] * times
-                             for (_color, times) in force_color.items()]
+            node_colors = np.random.choice(
+                colors,
+                size=n_nodes,
+                replace=True,
+                p=node_distribution_1)
+
+        else:
+            forced_colors = []
+            for (_color, times) in force_color.items():
+                for color in ([_color] * times):
+                    forced_colors.append(color)
 
             node_colors = np.random.choice(
                 possible_colors,
                 size=n_nodes - len(forced_colors),
                 replace=True,
-                p=node_distribution).tolist() + forced_colors
+                p=node_distribution_2).tolist() + forced_colors
 
             np.random.shuffle(node_colors)
-
-        else:
-            node_colors = np.random.choice(
-                possible_colors,
-                size=n_nodes,
-                replace=True,
-                p=node_distribution)
 
         nx.set_node_attributes(graph, dict(
             zip(graph, node_colors)), name="color")
@@ -191,13 +194,16 @@ def tagger(input_file: str,
 
     total_nodes = 0
     total_tagged = 0
+    total_property = 0
 
     for i, graph in enumerate(reader):
         print(f"{i}/{n_graphs} graphs tagged")
         node_colors = [node[1] for node in graph.nodes(data="color")]
 
         labels, graph_label = formula(node_colors)
+
         graph.graph["label"] = graph_label
+        total_property += graph_label
 
         total_nodes += len(labels)
         total_tagged += sum(labels)
@@ -210,6 +216,7 @@ def tagger(input_file: str,
     print("-- writting")
 
     print(f"{total_tagged}/{total_nodes} nodes were tagged 1 ({total_tagged/total_nodes})")
+    print(f"{total_property}/{n_graphs} graphs were tagged 1 ({total_property/n_graphs})")
 
 
 def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
@@ -231,7 +238,7 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     n_graphs = 100
-    n_nodes = 1000
+    n_nodes = 100
     n_colors = 5
 
     # 1/2 of the graphs do not have green
@@ -243,14 +250,20 @@ if __name__ == "__main__":
 
     # 1/2 red (1), 0.5/4 the others
     red_prob = 0.5
+
+    green_prob = 0
+    others = (1. - red_prob - green_prob) / (n_colors - 2)
+    node_distribution_1 = [red_prob] + [others] * (n_colors - 2)
+
     green_prob = (1. - red_prob) / (n_colors - 1)
     others = (1. - red_prob - green_prob) / (n_colors - 2)
-    node_distribution = [green_prob, red_prob] + [others] * (n_colors - 2)
+    node_distribution_2 = [green_prob, red_prob] + [others] * (n_colors - 2)
 
     # TODO signature
     graph_generator = generator(
         graph_distribution=graph_distribution,
-        node_distribution=node_distribution,
+        node_distribution_1=node_distribution_1,
+        node_distribution_2=node_distribution_2,
         number_graphs=n_graphs,
         min_nodes=int(n_nodes / 10),
         max_nodes=n_nodes,
