@@ -3,22 +3,97 @@ from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
 import networkx as nx
 import numpy as np
-from numpy.random import shuffle
+
+
+def __generate_empty_graph(n_nodes: int, ** kwargs) -> nx.Graph:
+    return nx.empty_graph(n=n_nodes)
+
+
+def __generate_graph_by_degree(
+        seed: int,
+        degrees: List[int] = None,
+        *,
+        use_random: bool = False,
+        n_nodes: int = None,
+        min_degree: int = 0,
+        max_degree: int = 0,
+        **kwargs) -> nx.Graph:
+
+    degree_sequence = degrees
+
+    if use_random:
+        if n_nodes is not None:
+            graph = None
+
+            proposed_n_nodes = n_nodes
+            while True:
+                try:
+                    _degrees = range(min_degree, max_degree + 1, 1)
+                    degree_sequence = random.choices(
+                        _degrees, k=proposed_n_nodes)
+
+                    graph = nx.random_degree_sequence_graph(
+                        sequence=degree_sequence, seed=seed)
+                except nx.NetworkXUnfeasible:
+                    proposed_n_nodes += 1
+                    continue
+
+                print(f"Took {proposed_n_nodes-n_nodes} tries")
+                return graph
+        else:
+            raise ValueError()
+
+    else:
+        if degree_sequence is None or len(degree_sequence) == 0:
+            raise ValueError()
+
+        return nx.random_degree_sequence_graph(
+            sequence=degree_sequence, seed=seed)
+
+
+def __generate_line_graph(n_nodes: int, **kwargs) -> nx.Graph:
+    return nx.path_graph(n=n_nodes)
+
+
+def __generate_random_graph(
+        n_nodes: int,
+        p: float,
+        seed: int,
+        **kwargs) -> nx.Graph:
+    return nx.fast_gnp_random_graph(n=n_nodes, p=p, seed=seed)
 
 
 def __generate_graph(n_graphs: int,
-                     generator_fn: Callable[...,
-                                            nx.Graph],
+                     generator_fn: str,
                      min_nodes: int,
                      max_nodes: int,
                      random_state: int = 0,
+                     variable_degree: bool = False,
                      **kwargs) -> Generator[nx.Graph, None, None]:
-    graph_list = []
+
+    fn = None
+    if generator_fn == "empty":
+        fn = __generate_empty_graph
+
+    elif generator_fn == "degree":
+        fn = __generate_graph_by_degree
+
+    elif generator_fn == "line":
+        fn = __generate_line_graph
+
+    elif generator_fn == "random":
+        fn = __generate_random_graph
+
+    else:
+        raise ValueError()
+
     print("Start generating graphs")
+
     for i in range(n_graphs):
         print(f"{i}/{n_graphs} graphs generated")
+
         n_nodes = random.randint(min_nodes, max_nodes)
-        yield generator_fn(n=n_nodes, seed=random_state, **kwargs)
+        yield fn(n_nodes=n_nodes, seed=random_state, use_random=variable_degree, **kwargs)
 
     print("Finish generating graphs")
 
@@ -100,21 +175,23 @@ def generator(graph_distribution: List[float],
               number_graphs: int,
               min_nodes: int,
               max_nodes: int,
-              structure_fn: Optional[Callable[...,
-                                              nx.Graph]] = None,
+              structure_fn: str = None,
+              variable_degree: bool = False,
               file_input: Optional[str] = None,
               n_colors: int = 10,
               force_color: Dict[int, int] = None,
+              force_color_position: Dict[int, int] = None,
               random_state: int = 0,
               **kwargs) -> Generator[Union[int, nx.Graph], None, None]:
 
     if structure_fn is not None:
         graph_generator = __generate_graph(
-            number_graphs,
-            structure_fn,
+            n_graphs=number_graphs,
+            generator_fn=structure_fn,
             min_nodes=min_nodes,
             max_nodes=max_nodes,
             random_state=random_state,
+            variable_degree=variable_degree,
             **kwargs)
         n_graphs = number_graphs
 
@@ -128,11 +205,10 @@ def generator(graph_distribution: List[float],
 
     print("Coloring graphs")
     possible_colors = list(range(n_colors))
-    # TODO: support more partitions
+
     # no green, green is 0
+    # al least N greens in partition 2, in defined in `force_color`
     partition_1 = graph_distribution[0] * n_graphs
-    # al least N greens, in `force_color`
-    partition_2 = n_graphs - partition_1
 
     yield number_graphs
 
@@ -152,9 +228,9 @@ def generator(graph_distribution: List[float],
 
         else:
             forced_colors = []
-            for (_color, times) in force_color.items():
-                for color in ([_color] * times):
-                    forced_colors.append(color)
+            for (color, times) in force_color.items():
+                for c in ([color] * times):
+                    forced_colors.append(c)
 
             node_colors = np.random.choice(
                 possible_colors,
@@ -163,6 +239,18 @@ def generator(graph_distribution: List[float],
                 p=node_distribution_2).tolist() + forced_colors
 
             np.random.shuffle(node_colors)
+
+            if force_color_position is not None:
+                # TODO: only work for 2 colors
+                (c_1, p_1), (c_2, p_2) = force_color_position.items()
+
+                # search for the color index
+                c1_pos = np.where(node_colors == c_1)
+                c2_pos = np.where(node_colors == c_2)
+
+                # swap the values
+                node_colors[[p_1, c1_pos]] = node_colors[[c1_pos, p_1]]
+                node_colors[[p_2, c2_pos]] = node_colors[[c2_pos, p_2]]
 
         nx.set_node_attributes(graph, dict(
             zip(graph, node_colors)), name="color")
@@ -234,13 +322,18 @@ def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
     return np.zeros(features.shape[0]).astype(int), 0
 
 
-if __name__ == "__main__":
-    seed = 4344
+def train_dataset(
+        name,
+        seed,
+        n_colors,
+        number_of_graphs,
+        n_min,
+        n_max,
+        random_degrees,
+        no_green=False,
+        **kwargs):
     random.seed(seed)
     np.random.seed(seed)
-
-    number_of_graphs = 5000
-    n_colors = 5
 
     # 1/2 of the graphs do not have green
     # the other 1/2 have at least force_color[0] greens
@@ -248,6 +341,7 @@ if __name__ == "__main__":
 
     # on the second graph split, force 1 green (0) in each graph
     force_color = {0: 1}
+    force_pos = {}
 
     # 1/2 red (1), 0.5/4 the others
     red_prob = 0.5
@@ -256,74 +350,122 @@ if __name__ == "__main__":
     others = (1. - red_prob - green_prob) / (n_colors - 2)
     node_distribution_1 = [red_prob] + [others] * (n_colors - 2)
 
-    green_prob = (1. - red_prob) / (n_colors - 1)
+    if not no_green:
+        green_prob = (1. - red_prob) / (n_colors - 1)
     others = (1. - red_prob - green_prob) / (n_colors - 2)
-    node_distribution_2 = [green_prob, red_prob] + [others] * (n_colors - 2)
-
-    # graph_generator = generator(
-    #     graph_distribution=graph_distribution,
-    #     node_distribution_1=node_distribution_1,
-    #     node_distribution_2=node_distribution_2,
-    #     number_graphs=number_of_graphs,
-    #     min_nodes=10,
-    #     max_nodes=100,
-    #     structure_fn=nx.fast_gnp_random_graph,
-    #     n_colors=n_colors,
-    #     # file_input="MUTAG.txt",
-    #     random_state=seed,
-    #     force_color=force_color,
-    #     p=0.3)  # random.random()
-    # write_graphs(graph_generator, filename="test.txt")
-
-    # label_generator = tagger(input_file="test.txt", formula=tagger_fn)
-    # write_graphs(
-    #     label_generator,
-    #     filename=f"train-{number_of_graphs}.txt",
-    #     write_features=["color"])
-
-    number_of_graphs = 100
-    node_min = 1000
-    node_max = 2000
-    edges_prob = 0.001
-
-    # 1/2 of the graphs do not have green
-    # the other 1/2 have at least force_color[0] greens
-    graph_distribution = [0.3, 0.7]
-
-    # on the second graph split, force 1 green (0) in each graph
-    force_color = {0: 1}
-
-    # 1/2 red (1), 0.5/4 the others
-    red_prob = 0.5
-
-    green_prob = 0
-    others = (1. - red_prob - green_prob) / (n_colors - 2)
-    node_distribution_1 = [red_prob] + [others] * (n_colors - 2)
-
-    green_prob = (1. - red_prob) / (n_colors - 1)
-    others = (1. - red_prob - green_prob) / (n_colors - 2)
-    node_distribution_2 = [green_prob, red_prob] + [others] * (n_colors - 2)
+    node_distribution_2 = [green_prob,
+                           red_prob] + [others] * (n_colors - 2)
 
     graph_generator = generator(
         graph_distribution=graph_distribution,
         node_distribution_1=node_distribution_1,
         node_distribution_2=node_distribution_2,
         number_graphs=number_of_graphs,
-        min_nodes=node_min,
-        max_nodes=node_max,
-        structure_fn=nx.fast_gnp_random_graph,
+        min_nodes=n_min,
+        max_nodes=n_max,
+        structure_fn=name.split("-")[0],
+        variable_degree=random_degrees,
         n_colors=n_colors,
         # file_input="MUTAG.txt",
         random_state=seed,
         force_color=force_color,
-        p=edges_prob)  # random.random()
+        force_color_position=None,
+        p=0.3,
+        **kwargs)  # random.random()
 
     i = random.randint(0, 1000)
-
     write_graphs(graph_generator, filename=f"temp{i}.txt")
 
     label_generator = tagger(input_file=f"temp{i}.txt", formula=tagger_fn)
     write_graphs(
         label_generator,
-        filename=f"test-{number_of_graphs}-{node_min}-{node_max}-{edges_prob*100}%-{green_prob*100}%v.txt",
+        filename=f"../data/train-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}.txt",
         write_features=["color"])
+
+
+def test_dataset(
+        name,
+        seed,
+        n_colors,
+        number_of_graphs,
+        n_min,
+        n_max,
+        random_degrees,
+        no_green=False,
+        **kwargs):
+    random.seed(seed)
+    np.random.seed(seed)
+
+    # 1/2 of the graphs do not have green
+    # the other 1/2 have at least force_color[0] greens
+    graph_distribution = [0.5, 0.5]
+
+    # on the second graph split, force 1 green (0) in each graph
+    force_color = {0: 1}
+    force_pos = {}
+
+    # 1/2 red (1), 0.5/4 the others
+    red_prob = 0.5
+
+    green_prob = 0
+    others = (1. - red_prob - green_prob) / (n_colors - 2)
+    node_distribution_1 = [red_prob] + [others] * (n_colors - 2)
+
+    if not no_green:
+        green_prob = (1. - red_prob) / (n_colors - 1)
+    others = (1. - red_prob - green_prob) / (n_colors - 2)
+    node_distribution_2 = [green_prob,
+                           red_prob] + [others] * (n_colors - 2)
+
+    graph_generator = generator(
+        graph_distribution=graph_distribution,
+        node_distribution_1=node_distribution_1,
+        node_distribution_2=node_distribution_2,
+        number_graphs=number_of_graphs,
+        min_nodes=n_min,
+        max_nodes=n_max,
+        structure_fn=name.split("-")[0],
+        variable_degree=random_degrees,
+        n_colors=n_colors,
+        # file_input="MUTAG.txt",
+        random_state=seed,
+        force_color=force_color,
+        force_color_position=None,
+        p=0.3,
+        **kwargs)  # random.random()
+
+    i = random.randint(0, 1000)
+    write_graphs(graph_generator, filename=f"temp{i}.txt")
+
+    label_generator = tagger(input_file=f"temp{i}.txt", formula=tagger_fn)
+    write_graphs(
+        label_generator,
+        filename=f"../data/test-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}.txt",
+        write_features=["color"])
+
+
+if __name__ == "__main__":
+
+    # train_dataset(
+    #     name="degree-0y2",
+    #     seed=33,
+    #     n_colors=5,
+    #     number_of_graphs=5000,
+    #     n_min=10,
+    #     n_max=50,
+    #     random_degrees=True,
+    #     min_degree=0,
+    #     max_degree=2,
+    #     no_green=True)
+
+    test_dataset(
+        name="degree-0y2",
+        seed=888,
+        n_colors=5,
+        number_of_graphs=100,
+        n_min=100,
+        n_max=120,
+        random_degrees=True,
+        min_degree=0,
+        max_degree=2,
+        no_green=False)

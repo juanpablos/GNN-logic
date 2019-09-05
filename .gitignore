@@ -3,6 +3,8 @@ dataset/
 .idea/
 results/
 plots/
+temp/
+data/
 
 
 
