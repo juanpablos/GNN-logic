@@ -152,7 +152,10 @@ def load_data(dataset: str,
         # matrix is (2,2xE),
         # 2-> node in - node out
         # 2xE, double the number of edges
-        graph.edge_mat = torch.LongTensor(edges).transpose(0, 1)
+        if edges:
+            graph.edge_mat = torch.LongTensor(edges).transpose(0, 1)
+        else:
+            graph.edge_mat = torch.LongTensor([[], []])
 
         # * in case the nodes do not have a label (placeholder for format), assign the node degree as label
         if degree_as_node_label:

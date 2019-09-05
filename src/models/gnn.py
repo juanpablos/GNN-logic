@@ -148,7 +148,10 @@ class GNN(nn.Module):
         h_with_dummy = torch.cat([h, dummy.reshape((1, -1)).to(self.device)])
         # take the representation for each node's neighbors. Assign the min to
         # the -1 padding then take the max for each node (pool the neighbors)
-        pooled_rep, _ = torch.max(h_with_dummy[aux_data], dim=1)
+        if aux_data.nelement() == 0:
+            pooled_rep = h
+        else:
+            pooled_rep, _ = torch.max(h_with_dummy[aux_data], dim=1)
         return pooled_rep
 
     def __graph_maxpool(self, h):
