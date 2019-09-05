@@ -244,78 +244,133 @@ def main(args, data_train=None, data_test=None, n_classes=None):
         if not args.filename == "":
             with open(args.filename, 'a') as f:
                 f.write(
-                    f"{epoch},{avg_loss:.4f},{train_micro:.4f},{train_macro:.4f},{test_micro:.4f},{test_macro:.4f}\n")
+                    f"{epoch},{avg_loss:.6f},{train_micro:.4f},{train_macro:.4f},{test_micro:.4f},{test_macro:.4f}\n")
 
 
 if __name__ == '__main__':
-    combine = {"trainable": "T", "mlp": "MLP"}
-    aggregation = {"sum": "S", "average": "A", "max": "M"}
+    _combine = {"trainable": "T", "mlp": "MLP"}
+    _aggregation = {"sum": "S", "average": "A", "max": "M"}
     # aggregation = {"max": "M"}
-    readout = {"sum": "S", "average": "A", "max": "M"}
-    mlp_agg = {"sum": "S"}  # , "average": "A", "max": "M", "concat": "C"}
-    network = {"acrgnn"}
-    datasets = ["T3"]
-    hidden = [64]
-    batch = [32]
+    _readout = {"sum": "S", "average": "A", "max": "M"}
+    _mlp_agg = {"sum": "S"}  # , "average": "A", "max": "M", "concat": "C"}
+    _network = {"acrgnn"}
+    _datasets = ["T3"]
+    _hidden = [64]
+    _batch = [32]
+
+    _networks = [
+        # [{"average": "A"}, {"max": "M"}, {"trainable": "T"}],
+        # [{"average": "A"}, {"average": "A"}, {"trainable": "T"}],
+        [{"max": "M"}, {"average": "A"}, {"trainable": "T"}],
+        # [{"max": "M"}, {"average": "A"}, {"mlp": "MLP"}],
+        # [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}]
+    ]
 
     print("Start running")
-    for dataset in datasets:
-        print(f"Start for dataset {dataset}")
+    for _dataset in [5000]:
+        print(f"Start for dataset {_dataset}")
+        _test_graphs, _ = load_data(
+            dataset=f"utils/test-100-500-700-0.14285714285714285%-12.5%v.txt", degree_as_node_label=False)
 
-        train_graphs, (_, _, n_node_labels) = load_data(
-            dataset=f"utils/{dataset}-1.txt", degree_as_node_label=False)
+        _train_graphs, (_, _, _n_node_labels) = load_data(
+            dataset=f"utils/train-5000-10-100-1.0%-12.5%v.txt", degree_as_node_label=False)
 
-        test_graphs, _ = load_data(
-            dataset=f"utils/{dataset}-2.txt", degree_as_node_label=False)
+        for num_layers in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
+            for a, r, c in _networks:
+                (_agg, _agg_abr) = list(a.items())[0]
+                (_read, _read_abr) = list(r.items())[0]
+                (_comb, _comb_abr) = list(c.items())[0]
+                _args = argument_parser().parse_args(
+                    [
+                        f"--readout={_read}",
+                        f"--aggregate={_agg}",
+                        f"--combine={_comb}",
+                        f"--network=acgnn",
+                        f"--mlp_combine_agg=sum",
+                        f"--filename={_dataset}-acgnn-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-h64-mlpX-b32-L{num_layers}.log",
+                        "--epochs=50",
+                        # "--no_test",
+                        f"--batch_size=32",
+                        "--test_every=1",
+                        f"--hidden_dim=64",
+                        f"--num_layers={num_layers}"
+                    ])
+                print(num_layers, a, r, c, "AC")
+                main(
+                    _args,
+                    data_train=_train_graphs,
+                    data_test=_test_graphs,
+                    n_classes=_n_node_labels)
 
-        for net in network:
-            for agg, agg_abr in aggregation.items():
-                for read, read_abr in readout.items():
-                    for comb, comb_abr in combine.items():
-                        for h in hidden:
-                            for b in batch:
-                                if comb == "mlp":
-                                    for agg_mlp, agg_mlp_abr in mlp_agg.items():
-                                        print(
-                                            f"Running for {net}-{agg}-{read}-{comb}-{h}-{agg_mlp}-{b} in {dataset}")
-                                        args = argument_parser().parse_args(
-                                            [
-                                                f"--readout={read}",
-                                                f"--aggregate={agg}",
-                                                f"--combine={comb}",
-                                                f"--network={net}",
-                                                f"--mlp_combine_agg={agg_mlp}",
-                                                f"--filename={dataset}-{net}-agg{agg_abr}-read{read_abr}-comb{comb_abr}-h{h}-mlp{agg_mlp_abr}-b{b}.log",
-                                                "--epochs=100",
-                                                # "--no_test",
-                                                f"--batch_size={b}",
-                                                "--test_every=1",
-                                                f"--hidden_dim={h}"
-                                            ])
-                                        main(
-                                            args,
-                                            data_train=train_graphs,
-                                            data_test=test_graphs,
-                                            n_classes=n_node_labels)
-                                else:
-                                    print(
-                                        f"Running for {net}-{agg}-{read}-{comb}-{h}-{b} in {dataset}")
-                                    args = argument_parser().parse_args(
-                                        [
-                                            f"--readout={read}",
-                                            f"--aggregate={agg}",
-                                            f"--combine={comb}",
-                                            f"--network={net}",
-                                            f"--mlp_combine_agg=sum",
-                                            f"--filename={dataset}-{net}-agg{agg_abr}-read{read_abr}-comb{comb_abr}-h{h}-mlpX-b{b}.log",
-                                            "--epochs=100",
-                                            # "--no_test",
-                                            f"--batch_size={b}",
-                                            "--test_every=1",
-                                            f"--hidden_dim={h}"
-                                        ])
-                                    main(
-                                        args,
-                                        data_train=train_graphs,
-                                        data_test=test_graphs,
-                                        n_classes=n_node_labels)
+                _args = argument_parser().parse_args(
+                    [
+                        f"--readout={_read}",
+                        f"--aggregate={_agg}",
+                        f"--combine={_comb}",
+                        f"--network=acrgnn",
+                        f"--mlp_combine_agg=sum",
+                        f"--filename={_dataset}-acrgnn-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-h64-mlpX-b32-{num_layers}.log",
+                        "--epochs=50",
+                        # "--no_test",
+                        f"--batch_size=32",
+                        "--test_every=1",
+                        f"--hidden_dim=64"
+                    ])
+                print(num_layers, a, r, c, "ACR")
+                main(
+                    _args,
+                    data_train=_train_graphs,
+                    data_test=_test_graphs,
+                    n_classes=_n_node_labels)
+
+        # for net in network:
+        #     for agg, agg_abr in aggregation.items():
+        #         for read, read_abr in readout.items():
+        #             for comb, comb_abr in combine.items():
+        #                 for h in hidden:
+        #                     for b in batch:
+        #                         if comb == "mlp":
+        #                             for agg_mlp, agg_mlp_abr in mlp_agg.items():
+        #                                 print(
+        #                                     f"Running for {net}-{agg}-{read}-{comb}-{h}-{agg_mlp}-{b} in {dataset}")
+        #                                 args = argument_parser().parse_args(
+        #                                     [
+        #                                         f"--readout={read}",
+        #                                         f"--aggregate={agg}",
+        #                                         f"--combine={comb}",
+        #                                         f"--network={net}",
+        #                                         f"--mlp_combine_agg={agg_mlp}",
+        #                                         f"--filename={dataset}-{net}-agg{agg_abr}-read{read_abr}-comb{comb_abr}-h{h}-mlp{agg_mlp_abr}-b{b}.log",
+        #                                         "--epochs=100",
+        #                                         # "--no_test",
+        #                                         f"--batch_size={b}",
+        #                                         "--test_every=1",
+        #                                         f"--hidden_dim={h}"
+        #                                     ])
+        #                                 main(
+        #                                     args,
+        #                                     data_train=train_graphs,
+        #                                     data_test=test_graphs,
+        #                                     n_classes=n_node_labels)
+        #                         else:
+        #                             print(
+        #                                 f"Running for {net}-{agg}-{read}-{comb}-{h}-{b} in {dataset}")
+        #                             args = argument_parser().parse_args(
+        #                                 [
+        #                                     f"--readout={read}",
+        #                                     f"--aggregate={agg}",
+        #                                     f"--combine={comb}",
+        #                                     f"--network={net}",
+        #                                     f"--mlp_combine_agg=sum",
+        #                                     f"--filename={dataset}-{net}-agg{agg_abr}-read{read_abr}-comb{comb_abr}-h{h}-mlpX-b{b}.log",
+        #                                     "--epochs=100",
+        #                                     # "--no_test",
+        #                                     f"--batch_size={b}",
+        #                                     "--test_every=1",
+        #                                     f"--hidden_dim={h}"
+        #                                 ])
+        #                             main(
+        #                                 args,
+        #                                 data_train=train_graphs,
+        #                                 data_test=test_graphs,
+        #                                 n_classes=n_node_labels)

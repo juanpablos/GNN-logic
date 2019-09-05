@@ -235,11 +235,56 @@ def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
 
 
 if __name__ == "__main__":
-    seed = 0
+    seed = 1
     random.seed(seed)
     np.random.seed(seed)
 
+    number_of_graphs = 5000
     n_colors = 5
+
+    # 1/2 of the graphs do not have green
+    # the other 1/2 have at least force_color[0] greens
+    graph_distribution = [0.5, 0.5]
+
+    # on the second graph split, force 1 green (0) in each graph
+    force_color = {0: 1}
+
+    # 1/2 red (1), 0.5/4 the others
+    red_prob = 0.5
+
+    green_prob = 0
+    others = (1. - red_prob - green_prob) / (n_colors - 2)
+    node_distribution_1 = [red_prob] + [others] * (n_colors - 2)
+
+    green_prob = (1. - red_prob) / (n_colors - 1)
+    others = (1. - red_prob - green_prob) / (n_colors - 2)
+    node_distribution_2 = [green_prob, red_prob] + [others] * (n_colors - 2)
+
+    # graph_generator = generator(
+    #     graph_distribution=graph_distribution,
+    #     node_distribution_1=node_distribution_1,
+    #     node_distribution_2=node_distribution_2,
+    #     number_graphs=number_of_graphs,
+    #     min_nodes=10,
+    #     max_nodes=100,
+    #     structure_fn=nx.fast_gnp_random_graph,
+    #     n_colors=n_colors,
+    #     # file_input="MUTAG.txt",
+    #     random_state=seed,
+    #     force_color=force_color,
+    #     p=0.3)  # random.random()
+    # write_graphs(graph_generator, filename="test.txt")
+
+    # label_generator = tagger(input_file="test.txt", formula=tagger_fn)
+    # write_graphs(
+    #     label_generator,
+    #     filename=f"train-{number_of_graphs}.txt",
+    #     write_features=["color"])
+
+    node_min = 500
+    node_max = 700
+    number_of_graphs = 100
+    edges_prob = 1 / node_max
 
     # 1/2 of the graphs do not have green
     # the other 1/2 have at least force_color[0] greens
@@ -263,40 +308,19 @@ if __name__ == "__main__":
         graph_distribution=graph_distribution,
         node_distribution_1=node_distribution_1,
         node_distribution_2=node_distribution_2,
-        number_graphs=10,
-        min_nodes=10,
-        max_nodes=100,
+        number_graphs=number_of_graphs,
+        min_nodes=node_min,
+        max_nodes=node_max,
         structure_fn=nx.fast_gnp_random_graph,
         n_colors=n_colors,
         # file_input="MUTAG.txt",
         random_state=seed,
         force_color=force_color,
-        p=0.3)  # random.random()
+        p=edges_prob)  # random.random()
     write_graphs(graph_generator, filename="test.txt")
 
     label_generator = tagger(input_file="test.txt", formula=tagger_fn)
     write_graphs(
         label_generator,
-        filename="T3-1.txt",
-        write_features=["color"])
-
-    graph_generator = generator(
-        graph_distribution=graph_distribution,
-        node_distribution_1=node_distribution_1,
-        node_distribution_2=node_distribution_2,
-        number_graphs=10,
-        min_nodes=10,
-        max_nodes=100,
-        structure_fn=nx.fast_gnp_random_graph,
-        n_colors=n_colors,
-        # file_input="MUTAG.txt",
-        random_state=seed,
-        force_color=force_color,
-        p=0.3)  # random.random()
-    write_graphs(graph_generator, filename="test.txt")
-
-    label_generator = tagger(input_file="test.txt", formula=tagger_fn)
-    write_graphs(
-        label_generator,
-        filename="T3-2.txt",
+        filename=f"test-{number_of_graphs}-{node_min}-{node_max}-{edges_prob*100}%-{green_prob*100}%v.txt",
         write_features=["color"])

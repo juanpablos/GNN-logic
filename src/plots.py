@@ -259,15 +259,32 @@ for log, df in dataframes.items():
         else:
             raise ValueError()
 
-for plot_variable, variable_data in T.items():
-    for to_plot, inner in variable_data.items():
-        for _type, data in inner.items():
-            if to_plot == "comb" and _type == "mlp":
-                for mlp_agg, other_data in data.items():
 
-                    p = other_data.plot(
+manual = True
+if not manual:
+    for plot_variable, variable_data in T.items():
+        for to_plot, inner in variable_data.items():
+            for _type, data in inner.items():
+                if to_plot == "comb" and _type == "mlp":
+                    for mlp_agg, other_data in data.items():
+
+                        p = other_data.plot(
+                            figsize=(20, 10),
+                            title=f"{plot_variable} for fixed {to_plot}={_type} mlp={mlp_agg}")
+                        if plot_variable == "loss":
+                            p.set_ylim(bottom=0)
+                        else:
+                            p.set_ylim((0, 1.1))
+                        fig = p.get_figure()
+
+                        os.makedirs(f"./plots/{plot_variable}/", exist_ok=True)
+                        fig.savefig(
+                            f"./plots/{plot_variable}/{to_plot}-{_type}-{mlp_agg}.png")
+                else:
+
+                    p = data.plot(
                         figsize=(20, 10),
-                        title=f"{plot_variable} for fixed {to_plot}={_type} mlp={mlp_agg}")
+                        title=f"{plot_variable} for fixed {to_plot}={_type}")
                     if plot_variable == "loss":
                         p.set_ylim(bottom=0)
                     else:
@@ -276,20 +293,49 @@ for plot_variable, variable_data in T.items():
 
                     os.makedirs(f"./plots/{plot_variable}/", exist_ok=True)
                     fig.savefig(
-                        f"./plots/{plot_variable}/{to_plot}-{_type}-{mlp_agg}.png")
-            else:
+                        f"./plots/{plot_variable}/{to_plot}-{_type}.png")
 
-                p = data.plot(
-                    figsize=(20, 10),
-                    title=f"{plot_variable} for fixed {to_plot}={_type}")
-                if plot_variable == "loss":
-                    p.set_ylim(bottom=0)
+                plt.close(fig)
+else:
+    for plot_variable, variable_data in T.items():
+        for to_plot, inner in variable_data.items():
+
+            if to_plot == "h" or to_plot=="batch":
+                continue
+
+            for _type, data in inner.items():
+
+                if to_plot == "agg" and _type == "sum":
+                    continue
+
+                if to_plot == "comb" and _type == "mlp":
+                    for mlp_agg, other_data in data.items():
+
+                        p = other_data.plot(
+                            figsize=(20, 10),
+                            title=f"{plot_variable} for fixed {to_plot}={_type} mlp={mlp_agg}")
+                        if plot_variable == "loss":
+                            p.set_ylim(bottom=0)
+                        else:
+                            p.set_ylim((0, 1.1))
+                        fig = p.get_figure()
+
+                        os.makedirs(f"./plots/{plot_variable}/", exist_ok=True)
+                        fig.savefig(
+                            f"./plots/{plot_variable}/{to_plot}-{_type}-{mlp_agg}.png")
                 else:
-                    p.set_ylim((0, 1.1))
-                fig = p.get_figure()
 
-                os.makedirs(f"./plots/{plot_variable}/", exist_ok=True)
-                fig.savefig(
-                    f"./plots/{plot_variable}/{to_plot}-{_type}.png")
+                    p = data.plot(
+                        figsize=(20, 10),
+                        title=f"{plot_variable} for fixed {to_plot}={_type}")
+                    if plot_variable == "loss":
+                        p.set_ylim(bottom=0)
+                    else:
+                        p.set_ylim((0, 1.1))
+                    fig = p.get_figure()
 
-            plt.close(fig)
+                    os.makedirs(f"./plots/{plot_variable}/", exist_ok=True)
+                    fig.savefig(
+                        f"./plots/{plot_variable}/{to_plot}-{_type}.png")
+
+                plt.close(fig)
