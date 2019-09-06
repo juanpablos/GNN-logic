@@ -89,7 +89,15 @@ def pass_data_iteratively(model, graphs, minibatch_size=32):
     return torch.cat(output, dim=0), n_nodes, np.cumsum(n_nodes), labels
 
 
-def test(args, model, device, train_graphs, test_graphs, epoch, run_test):
+def test(
+        args,
+        model,
+        device,
+        train_graphs,
+        test_graphs,
+        epoch,
+        run_test,
+        another_test=None):
     model.eval()
 
     # --- train
@@ -109,19 +117,11 @@ def test(args, model, device, train_graphs, test_graphs, epoch, run_test):
     # macro average -> mean between the mean of nodes for each graph
     train_macro_avg = np.mean([np.mean(graph) for graph in macro_split])
 
-    # * Debug
-    # with open("debug.txt", 'w') as f:
-    #     f.write("PREDICTED\n")
-    #     for i in range(len(predicted_labels)):
-    #         f.write(f"{str(predicted_labels[i])}\n{str(labels[i])}")
-    #         f.write("\n\n")
-    # import sys
-    # sys.exit()
-
     # --- test
     test_micro_avg, test_macro_avg = -1, -1
     if not args.no_test:
         if run_test:
+
             output, n_nodes, indices, labels = pass_data_iteratively(
                 model, test_graphs)
             output = torch.sigmoid(output)
@@ -139,14 +139,44 @@ def test(args, model, device, train_graphs, test_graphs, epoch, run_test):
             # macro average -> mean between the mean of nodes for each graph
             test_macro_avg = np.mean([np.mean(graph) for graph in macro_split])
 
+            if another_test is not None:
+                output, n_nodes, indices, labels = pass_data_iteratively(
+                    model, test_graphs)
+                output = torch.sigmoid(output)
+                _, predicted_labels = output.max(dim=1)
+
+                # equals both vectors, prediction == label
+                results = np.equal(predicted_labels.cpu(), labels).numpy()
+
+                # micro average -> mean between all nodes
+                test_another_micro_avg = np.mean(results)
+
+                # split node equality by graph, we dont need the last value of
+                # `indices`
+                macro_split = np.split(results, indices[:-1])
+                # macro average -> mean between the mean of nodes for each
+                # graph
+                test_another_macro_avg = np.mean(
+                    [np.mean(graph) for graph in macro_split])
+
     print(
         f"Train accuracy: micro: {train_micro_avg}\tmacro: {train_macro_avg}")
     print(f"Test accuracy: micro: {test_micro_avg}\tmacro: {test_macro_avg}")
+    if another_test is not None:
+        print(
+            f"Test accuracy: micro: {test_another_micro_avg}\tmacro: {test_another_macro_avg}")
 
-    return train_micro_avg, train_macro_avg, test_micro_avg, test_macro_avg
+        return train_micro_avg, train_macro_avg, test_micro_avg, test_macro_avg, test_another_micro_avg, test_another_macro_avg
+
+    return train_micro_avg, train_macro_avg, test_micro_avg, test_macro_avg, -1, -1
 
 
-def main(args, data_train=None, data_test=None, n_classes=None):
+def main(
+        args,
+        data_train=None,
+        data_test=None,
+        n_classes=None,
+        another_test=None):
     # set up seeds and gpu device
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -218,7 +248,8 @@ def main(args, data_train=None, data_test=None, n_classes=None):
 
     if not args.filename == "":
         with open(args.filename, 'w') as f:
-            f.write("Epoch,Loss,train_micro,train_macro,test_micro,test_macro\n")
+            f.write(
+                "Epoch,Loss,train_micro,train_macro,test_micro,test_macro,,test_micro2,test_macro2\n")
 
     # `epoch` is only for printing purposes
     for epoch in range(1, args.epochs + 1):
@@ -235,82 +266,84 @@ def main(args, data_train=None, data_test=None, n_classes=None):
 
         # run the test set only every 20 epochs
         if epoch % args.test_every == 0:
-            train_micro, train_macro, test_micro, test_macro = test(
-                args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=True)
+            train_micro, train_macro, test_micro, test_macro, test_micro2, test_macro2 = test(
+                args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=True, another_test=another_test)
         else:
-            train_micro, train_macro, test_micro, test_macro = test(
-                args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=False)
+            train_micro, train_macro, test_micro, test_macro, test_micro2, test_macro2 = test(
+                args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=False, another_test=another_test)
 
         if not args.filename == "":
             with open(args.filename, 'a') as f:
                 f.write(
-                    f"{epoch},{avg_loss:.6f},{train_micro:.4f},{train_macro:.4f},{test_micro:.4f},{test_macro:.4f}\n")
+                    f"{epoch},{avg_loss:.6f},{train_micro:.4f},{train_macro:.4f},{test_micro:.4f},{test_macro:.4f},{test_micro2:.4f},{test_macro2:.4f}\n")
 
 
 if __name__ == '__main__':
+
+    # agg, read, comb
     _networks = [
         # [{"average": "A"}, {"max": "M"}, {"trainable": "T"}],
         # [{"average": "A"}, {"average": "A"}, {"trainable": "T"}],
         [{"max": "M"}, {"average": "A"}, {"trainable": "T"}],
+        [{"max": "M"}, {"max": "M"}, {"trainable": "T"}],
         # [{"max": "M"}, {"average": "A"}, {"mlp": "MLP"}],
         # [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}]
     ]
 
+    use_dataset = "degree-0y2"
+
     print("Start running")
-    for enum, (_dataset_train, _dataset_test) in enumerate([
-        ("train-5000-50-100-0.1%-12.5%v", "test-100-1000-2000-10.0%-12.5%v"),
-            ("train-5000-50-100-10.0%-12.5%v", "test-100-1000-2000-0.1%-12.5%v")]):
-        print(f"Start for dataset {_dataset_train}-{_dataset_test}")
+    for enum, (_train, _test1, _test2) in enumerate([
+        (f"train-{use_dataset}-5000-10-50-v0.125-v1",
+         f"test-{use_dataset}-100-10-50-v0.125-v1",
+         f"test-{use_dataset}-100-100-120-v0.125-v1"),
+        (f"train-{use_dataset}-5000-10-50-v0-v1",
+         f"test-{use_dataset}-100-10-50-v0-v1",
+         f"test-{use_dataset}-100-100-120-v0-v1")
+    ]):
+        print(f"Start for dataset {_train}-{_test1}-{_test2}")
 
         _train_graphs, (_, _, _n_node_labels) = load_data(
-            dataset=f"utils/{_dataset_train}.txt", degree_as_node_label=False)
+            dataset=f"data/{use_dataset}/{_train}.txt", degree_as_node_label=False)
+
         _test_graphs, _ = load_data(
-            dataset=f"utils/{_dataset_test}.txt", degree_as_node_label=False)
+            dataset=f"data/{use_dataset}/{_test1}.txt", degree_as_node_label=False)
 
-        for a, r, c in _networks:
-            (_agg, _agg_abr) = list(a.items())[0]
-            (_read, _read_abr) = list(r.items())[0]
-            (_comb, _comb_abr) = list(c.items())[0]
-            _args = argument_parser().parse_args(
-                [
-                    f"--readout={_read}",
-                    f"--aggregate={_agg}",
-                    f"--combine={_comb}",
-                    f"--network=acgnn",
-                    f"--mlp_combine_agg=sum",
-                    f"--filename={enum}-acgnn-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-h64-mlpX-b32-L5.log",
-                    "--epochs=50",
-                    # "--no_test",
-                    f"--batch_size=32",
-                    "--test_every=1",
-                    f"--hidden_dim=64",
-                    f"--num_layers=5"
-                ])
-            print(a, r, c, "AC")
-            main(
-                _args,
-                data_train=_train_graphs,
-                data_test=_test_graphs,
-                n_classes=_n_node_labels)
+        _test_graphs2, _ = load_data(
+            dataset=f"data/{use_dataset}/{_test2}.txt", degree_as_node_label=False)
 
-            _args = argument_parser().parse_args(
-                [
-                    f"--readout={_read}",
-                    f"--aggregate={_agg}",
-                    f"--combine={_comb}",
-                    f"--network=acrgnn",
-                    f"--mlp_combine_agg=sum",
-                    f"--filename={enum}-acrgnn-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-h64-mlpX-b32-L5.log",
-                    "--epochs=50",
-                    # "--no_test",
-                    f"--batch_size=32",
-                    "--test_every=1",
-                    f"--hidden_dim=64",
-                    f"--num_layers=5"
-                ])
-            print(a, r, c, "ACR")
-            main(
-                _args,
-                data_train=_train_graphs,
-                data_test=_test_graphs,
-                n_classes=_n_node_labels)
+        for _net_class in ["ac", "acr"]:
+            for l in [2, 57]:
+                for a, r, c in _networks:
+
+                    print(a, r, c, _net_class)
+
+                    (_agg, _agg_abr) = list(a.items())[0]
+                    (_read, _read_abr) = list(r.items())[0]
+                    (_comb, _comb_abr) = list(c.items())[0]
+
+                    if _net_class == "ac" and _read == "max":
+                        continue
+
+                    _args = argument_parser().parse_args(
+                        [
+                            f"--readout={_read}",
+                            f"--aggregate={_agg}",
+                            f"--combine={_comb}",
+                            f"--network={_net_class}gnn",
+                            f"--mlp_combine_agg=sum",
+                            f"--filename={use_dataset}-{enum}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
+                            "--epochs=50",
+                            # "--no_test",
+                            f"--batch_size=32",
+                            "--test_every=1",
+                            f"--hidden_dim=64",
+                            f"--num_layers={l}"
+                        ])
+
+                    main(
+                        _args,
+                        data_train=_train_graphs,
+                        data_test=_test_graphs,
+                        n_classes=_n_node_labels,
+                        another_test=_test_graphs2)

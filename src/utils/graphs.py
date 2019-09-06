@@ -446,26 +446,26 @@ def test_dataset(
 
 if __name__ == "__main__":
 
-    # train_dataset(
-    #     name="degree-0y2",
-    #     seed=33,
-    #     n_colors=5,
-    #     number_of_graphs=5000,
-    #     n_min=10,
-    #     n_max=50,
-    #     random_degrees=True,
-    #     min_degree=0,
-    #     max_degree=2,
-    #     no_green=True)
+    train_dataset(
+        name="line",
+        seed=3452,
+        n_colors=5,
+        number_of_graphs=5000,
+        n_min=10,
+        n_max=50,
+        random_degrees=False,
+        min_degree=0,
+        max_degree=2,
+        no_green=True)
 
     test_dataset(
-        name="degree-0y2",
-        seed=888,
+        name="line",
+        seed=1435,
         n_colors=5,
         number_of_graphs=100,
         n_min=100,
         n_max=120,
-        random_degrees=True,
+        random_degrees=False,
         min_degree=0,
         max_degree=2,
-        no_green=False)
+        no_green=True)
