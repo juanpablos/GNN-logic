@@ -1,6 +1,7 @@
 
 from functools import partial
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.init as init
@@ -154,12 +155,24 @@ class GNN(nn.Module):
             pooled_rep, _ = torch.max(h_with_dummy[aux_data], dim=1)
         return pooled_rep
 
-    def __graph_maxpool(self, h):
+    def __graph_maxpool(self, h, indices):
         # h must be a matrix with all node representations.
         # shape (nodes, hidden)
-        # * return dimension (1, hidden)
-        pooled_rep, _ = torch.max(h, dim=0, keepdim=True)
-        return pooled_rep
+        # * return dimension (nodes, hidden)
+
+        pooled_hidden = []
+
+        for index in range(1, len(indices)):
+            start = indices[index - 1]
+            end = indices[index]
+            graph = h[start:end]
+
+            pooled_rep, _ = torch.max(graph, dim=0, keepdim=True)
+            pooled_rep = pooled_rep.expand(graph.size())
+
+            pooled_hidden.append(pooled_rep)
+
+        return torch.cat(pooled_hidden, dim=0).to(self.device)
 
     def __node_sumavgpool(self, h, aux_data, average=False):
         # aux_data must be a adjancency matrix of dims
@@ -182,14 +195,27 @@ class GNN(nn.Module):
 
         return pooled_rep
 
-    def __graph_sumavgpool(self, h, average=False):
+    def __graph_sumavgpool(self, h, indices, average=False):
         # h must be a matrix with all node representations.
         # shape (nodes, hidden)
-        # * return dimension (1, hidden)
-        if average:
-            return torch.mean(h, dim=0, keepdim=True)
-        else:
-            return torch.sum(h, dim=0, keepdim=True)
+        # * return dimension (nodes, hidden)
+        pooled_hidden = []
+
+        for index in range(1, len(indices)):
+            start = indices[index - 1]
+            end = indices[index]
+            graph = h[start:end]
+
+            if average:
+                pooled_rep = torch.mean(graph, dim=0, keepdim=True)
+            else:
+                pooled_rep = torch.sum(graph, dim=0, keepdim=True)
+
+            pooled_rep = pooled_rep.expand(graph.size())
+
+            pooled_hidden.append(pooled_rep)
+
+        return torch.cat(pooled_hidden, dim=0).to(self.device)
 
     def __functional_combine(
             self,
@@ -274,7 +300,7 @@ class GNN(nn.Module):
                 padded_neighbors.append(pad)
             padded_neighbor_list.extend(padded_neighbors)
 
-        return torch.LongTensor(padded_neighbor_list)
+        return torch.LongTensor(padded_neighbor_list), start_idx
 
     def __preprocess_neighbors_sumavgpool(self, batch_graph):
         # TODO: preprocess outside the network. Dataloader
@@ -292,10 +318,20 @@ class GNN(nn.Module):
         Adj_block = torch.sparse.FloatTensor(
             Adj_block_idx, Adj_block_elem, torch.Size([start_idx[-1], start_idx[-1]]))
 
-        return Adj_block.to(self.device)
+        return Adj_block.to(self.device), start_idx
 
     def compute_layer(self, h, layer, aux_data):
         raise NotImplementedError()
+
+    class delete:
+        def __init__(self):
+            self.n = 0
+
+        def __call__(self):
+            self.n += 1
+            return self.n
+
+    d = delete()
 
     def forward(self, batch_graph):
         # Stack node features -> result is a matrix of size (nodes, features)
@@ -306,12 +342,12 @@ class GNN(nn.Module):
         # * (nodes, hidden), padded
         X_concat = self.padding(X_concat)
 
-        aux_data = self.node_preprocess(batch_graph)
+        aux_data, graph_indices = self.node_preprocess(batch_graph)
 
         h = X_concat
         for layer in range(self.num_layers):
             combined_rep = self.compute_layer(
-                h=h, layer=layer, aux_data=aux_data)
+                h=h, layer=layer, aux_data=aux_data, indices=graph_indices)
 
             h = self.batch_norms[layer](combined_rep)
             # hidden_rep.append(h)

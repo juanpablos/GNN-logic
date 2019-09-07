@@ -1,5 +1,5 @@
 import torch
-
+import numpy as np
 from .gnn import GNN
 
 
@@ -35,9 +35,12 @@ class ACRGNN(GNN):
                                      input_factor=3,
                                      device=device)
 
-    def compute_layer(self, h, layer, aux_data):
+    def compute_layer(self, h, layer, aux_data, indices):
         # pooling neighboring nodes and center nodes altogether
         aggregated = self.aggregate(h=h, aux_data=aux_data)
-        readout = self.readout(h=h)
+        readout = self.readout(h=h, indices=indices)
         h = self.combine(x1=h, x2=aggregated, x3=readout, layer=layer)
+        # np.savetxt(
+        #     f"log{self.d()}.log",
+        #     h.detach().cpu().numpy())
         return torch.relu(h)

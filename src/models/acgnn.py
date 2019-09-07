@@ -35,7 +35,7 @@ class ACGNN(GNN):
                                     input_factor=2,
                                     device=device)
 
-    def compute_layer(self, h, layer, aux_data):
+    def compute_layer(self, h, layer, aux_data, indices):
         # pooling neighboring nodes and center nodes altogether
         aggregated = self.aggregate(h=h, aux_data=aux_data)
         h = self.combine(x1=h, x2=aggregated, layer=layer)
