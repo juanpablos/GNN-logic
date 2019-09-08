@@ -365,11 +365,11 @@ def main(
     else:
 
         train_micro, train_macro, test_micro, test_macro, test_micro2, test_macro2, test1_loss, test2_loss = test(
-            args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=True, another_test=another_test, criterion=criterion)
+            args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=-1, run_test=True, another_test=another_test, criterion=criterion)
 
         with open(args.filename, 'a') as f:
             f.write(
-                f"{epoch},{test1_loss:.10f},{test2_loss:.10f},{train_micro:.8f},{train_macro:.8f},{test_micro:.8f},{test_macro:.8f},{test_micro2:.8f},{test_macro2:.8f}\n")
+                f"{test1_loss:.10f},{test2_loss:.10f},{train_micro:.8f},{train_macro:.8f},{test_micro:.8f},{test_macro:.8f},{test_micro2:.8f},{test_macro2:.8f}\n")
 
 
 if __name__ == '__main__':
@@ -401,15 +401,15 @@ if __name__ == '__main__':
     print("Start running")
     for key in ["random"]:
         for enum, (_train, _test1, _test2) in enumerate([
-            ("train-random-5000-50-100-v0.125-v1-0.3",
-             "test-random-100-50-100-v0.125-v1-0.1",
-             "test-random-100-100-200-v0.125-v1-0.1"),
-            ("train-random-5000-50-100-v0.125-v1-0.1",
-             "test-random-100-50-100-v0.125-v1-0.1",
-             "test-random-100-100-200-v0.125-v1-0.1"),
-            ("train-random-5000-50-100-v0.125-v1-0.01",
-             "test-random-100-50-100-v0.125-v1-0.1",
-             "test-random-100-100-200-v0.125-v1-0.1"),
+            ("train-random-5000-50-100-v0.125-v1-0.025",
+             "test-random-100-50-100-v0.125-v1-0.025",
+             "test-random-100-100-200-v0.125-v1-0.025"),
+            # ("train-random-5000-50-100-v0.125-v1-0.1",
+            #  "test-random-100-50-100-v0.125-v1-0.01",
+            #  "test-random-100-100-200-v0.125-v1-0.01"),
+            # ("train-random-5000-50-100-v0.125-v1-0.01",
+            #  "test-random-100-50-100-v0.125-v1-0.01",
+            #  "test-random-100-100-200-v0.125-v1-0.01"),
 
             # ("train-random-5000-50-100-v0.125-v1-0.3",
             #  "test-random-100-50-100-v0.125-v1-0.1",
@@ -431,6 +431,9 @@ if __name__ == '__main__':
             #  "test-random-100-50-100-v0.125-v1-0.01",
             #  "test-random-100-100-200-v0.125-v1-0.01"),
         ]):
+
+            enum = 3
+
             print(f"Start for dataset {_train}-{_test1}-{_test2}")
 
             _train_graphs, (_, _, _n_node_labels) = load_data(
@@ -489,7 +492,7 @@ if __name__ == '__main__':
                             data_test=_test_graphs,
                             n_classes=_n_node_labels,
                             another_test=_test_graphs2,
-                            # save_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
-                            train_model=False,
-                            load_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth"
+                            save_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
+                            train_model=True,
+                            # load_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth"
                         )
