@@ -130,7 +130,7 @@ class GNN(nn.Module):
         # takes all node's representations as input and returns a single
         # vector representation, that is the combination of
         # the hidden representations of all nodes in the graph
-        # * return dimension (1, hidden)
+        # * return dimension (nodes, hidden)
         options = {
             "sum": partial(self.__graph_sumavgpool, average=False),
             "average": partial(self.__graph_sumavgpool, average=True),
@@ -227,7 +227,7 @@ class GNN(nn.Module):
             **kwargs):
         # x1: node representations, shape (nodes, hidden)
         # x2: node aggregations, shape (nodes, hidden)
-        # - x3: graph readout, shape (1, hidden)
+        # - x3: graph readout, shape (nodes, hidden)
 
         if x3 is None:
             combined = torch.cat([x1.unsqueeze(0), x2.unsqueeze(0)])
@@ -249,7 +249,7 @@ class GNN(nn.Module):
     def __trainable_combine(self, x1, x2, x3=None, *, layer, **kwargs):
         # x1: node representations, shape (nodes, hidden)
         # x2: node aggregations, shape (nodes, hidden)
-        # - x3: graph readout, shape (1, hidden)
+        # - x3: graph readout, shape (nodes, hidden)
 
         if x3 is None:
             return self.V[layer](x1) + self.A[layer](x2)
@@ -259,7 +259,7 @@ class GNN(nn.Module):
     def __mlp_combine(self, x1, x2, x3=None, *, layer, aggregate, **kwargs):
         # x1: node representations, shape (nodes, hidden)
         # x2: node aggregations, shape (nodes, hidden)
-        # - x3: graph readout, shape (1, hidden)
+        # - x3: graph readout, shape (nodes, hidden)
 
         if aggregate == "concat":
             if x3 is None:
@@ -271,7 +271,7 @@ class GNN(nn.Module):
             combined = self.__functional_combine(
                 x1=x1, x2=x2, x3=x3, function=aggregate)
 
-        # * combined is (nodes, feathiddenures) matrix if aggregate=sum|avg|max
+        # * combined is (nodes, hidden) matrix if aggregate=sum|avg|max
         # * and (nodes, hidden*(2|3)) when aggregate=concat
         h = self.mlps[layer](combined)
         return h

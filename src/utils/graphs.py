@@ -169,6 +169,247 @@ def write_graphs(graphs: Generator[Union[int, nx.Graph], None, None],
                         f"{n_features} {features} {node_attributes['label']} {n_edges} {edges}\n")
 
 
+def __split_line(graph, i, split_line, partition, colors, distribution):
+    n_nodes = len(graph)
+
+    _to_remove = split_line["split"]
+    if len(split_line["split"]) == 0:
+        _to_remove = [random.randint(1, (n_nodes - 1))]
+    elif isinstance(split_line["split"][0], float):
+        _to_remove = []
+        for _split in split_line["split"]:
+            _to_remove.append(int(_split * (n_nodes - 1)))
+    elif isinstance(split_line["split"][0], int):
+        _to_remove = np.random.choice(
+            range(1, n_nodes - 1),  # no green
+            size=split_line["split"][0] - 1,
+            replace=False,
+            p=None).tolist()
+
+    edges = list(graph.edges)
+    for _split in _to_remove:
+        graph.remove_edge(*edges[_split])
+
+    sub_graphs = [graph.subgraph(c) for c in nx.connected_components(graph)]
+
+    if i < partition:
+        node_colors = np.random.choice(
+            colors[1:],  # no green
+            size=n_nodes,
+            replace=True,
+            p=distribution)
+    else:
+        # part 1: one green
+        # random -> only one green
+
+        if random.random() < 0.3:
+            part_1 = np.random.choice(
+                colors[:1] + colors[2:],
+                size=len(sub_graphs[0]) - 1,
+                replace=True,
+                p=None).tolist() + [0]
+        else:
+            part_1 = np.random.choice(
+                colors[2:],
+                size=len(sub_graphs[0]) - 1,
+                replace=True,
+                p=None).tolist() + [0]
+
+        # part 2: other side, all red
+        part_2 = np.random.choice(
+            [1],
+            size=len(sub_graphs[-1]),
+            replace=True,
+            p=None).tolist()
+
+        # part 3: all other random
+        nodes_left = sum([len(g) for g in sub_graphs[1:-1]])
+        part_3 = np.random.choice(
+            colors,
+            size=nodes_left,
+            replace=True,
+            p=None).tolist()
+
+        node_colors = part_1 + part_3 + part_2
+
+    return graph, node_colors
+
+
+def __coloring_logic(
+    *,
+    graph,
+    split_line,
+    number,
+    partition,
+    possible_colors,
+    node_distribution_1,
+    node_distribution_2,
+    structure_fn,
+    force_color,
+        force_color_position):
+
+    n_nodes = len(graph)
+
+    if split_line is None:
+        if number < partition:
+            # no green
+            colors = possible_colors[1:]
+
+            node_colors = np.random.choice(
+                colors,
+                size=n_nodes,
+                replace=True,
+                p=node_distribution_1)
+
+        else:
+            forced_colors = []
+            for (color, times) in force_color.items():
+                for c in ([color] * times):
+                    forced_colors.append(c)
+
+            node_colors = np.random.choice(
+                possible_colors,
+                size=n_nodes - len(forced_colors),
+                replace=True,
+                p=node_distribution_2).tolist() + forced_colors
+
+            node_colors = np.array(node_colors)
+
+            np.random.shuffle(node_colors)
+
+            if force_color_position is not None:
+                # TODO: only work for 2 colors
+                (c_1, p_1), (c_2, p_2) = force_color_position.items()
+                # search for the color index
+                for times in range(force_color[c_1]):
+                    arr = node_colors[times:]
+
+                    c1_pos = np.where(arr == c_1)[0][0]
+                    arr[c1_pos], arr[p_1] = arr[p_1], arr[c1_pos]
+
+                for times in range(force_color[c_2]):
+                    arr = node_colors
+                    if times != 0:
+                        arr = arr[:-times]
+
+                    c2_pos = np.where(arr == c_2)[0][0]
+                    arr[c2_pos], arr[p_2] = arr[p_2], arr[c2_pos]
+
+    elif split_line is not None and structure_fn == "line":
+        graph, node_colors = __split_line(
+            graph, number, split_line, partition, possible_colors, node_distribution_1)
+
+    else:
+        raise ValueError()
+
+    nx.set_node_attributes(graph, dict(
+        zip(graph, node_colors)), name="color")
+
+    # placeholder
+    graph.graph["label"] = 0
+
+    return graph
+
+
+def __special_line(
+        graph,
+        colors,
+        number,
+        n_graphs,
+        only_extreme=False,
+        **kwargs):
+
+    class_1 = int(n_graphs * 0.3)
+    class_2 = int(n_graphs * 0.5) + class_1
+    class_3 = int(n_graphs * 0.1) + class_2
+    class_4 = int(n_graphs * 0.1) + class_3
+
+    n_nodes = len(graph)
+    first_half = int(n_nodes * 0.5)
+
+    if number < class_1:
+        # class 1 (30%), no green
+        # first half no green, other uniform. Second half 80% red no greens
+
+        first_half_colors = np.random.choice(
+            colors[1:],
+            size=first_half,
+            replace=True,
+            p=None).tolist()
+
+        red = 0.8
+        others = (1. - red) / (len(colors) - 2)
+        _colors = [red] + [others] * (len(colors) - 2)
+        second_half_colors = np.random.choice(
+            colors[1:],
+            size=n_nodes - first_half,
+            replace=True,
+            p=_colors).tolist()
+
+        use_colors = first_half_colors + second_half_colors
+
+    elif number < class_2:
+        # class 2 (50%)
+        # first half green on first positions, other uniform. Second half
+        # 80% red no greens
+
+        # 20% of first 50% have 80% green
+        greens = int(first_half * 0.2)
+        green = 0.8
+        others = (1. - green) / (len(colors) - 2)
+        green_colors = [0] + np.random.choice(
+            colors,
+            size=greens - 1,
+            replace=True,
+            p=[green, 0.] + [others] * (len(colors) - 2)).tolist()
+
+        others = 1. / (len(colors) - 2)
+        # the other 30% is uniform with no greens and not reds
+        first_half_colors = np.random.choice(
+            colors,
+            size=first_half - greens,
+            replace=True,
+            p=[0., 0.] + [others] * (len(colors) - 2)).tolist()
+
+        red = 0.9
+        others = (1. - red) / (len(colors) - 2)
+        _colors = [red] + [others] * (len(colors) - 2)
+        second_half_colors = np.random.choice(
+            colors[1:],
+            size=n_nodes - first_half,
+            replace=True,
+            p=_colors).tolist()
+
+        use_colors = green_colors + first_half_colors + second_half_colors
+
+    elif number < class_3:
+        # class 3 (10%)
+        # uniform, no green
+
+        use_colors = np.random.choice(
+            colors[1:],
+            size=n_nodes,
+            replace=True,
+            p=None).tolist()
+
+    else:
+        # class 4 (10%)
+        # uniform
+
+        use_colors = np.random.choice(
+            colors,
+            size=n_nodes,
+            replace=True,
+            p=None).tolist()
+
+    nx.set_node_attributes(graph, dict(
+        zip(graph, use_colors)), name="color")
+
+    graph.graph["label"] = 0
+
+    return graph
+
+
 def generator(graph_distribution: List[float],
               node_distribution_1: List[float],
               node_distribution_2: List[float],
@@ -182,6 +423,8 @@ def generator(graph_distribution: List[float],
               force_color: Dict[int, int] = None,
               force_color_position: Dict[int, int] = None,
               random_state: int = 0,
+              split_line=None,
+              special_line=False,
               **kwargs) -> Generator[Union[int, nx.Graph], None, None]:
 
     if structure_fn is not None:
@@ -214,51 +457,42 @@ def generator(graph_distribution: List[float],
 
     for i, graph in enumerate(graph_generator):
         print(f"{i}/{n_graphs} graphs colored")
-        n_nodes = len(graph)
 
-        if i < partition_1:
-            # no green
-            colors = possible_colors[1:]
-
-            node_colors = np.random.choice(
-                colors,
-                size=n_nodes,
-                replace=True,
-                p=node_distribution_1)
+        if special_line and structure_fn == "line":
+            graph = __special_line(
+                graph=graph,
+                colors=possible_colors,
+                number=i,
+                n_graphs=n_graphs,
+                **kwargs)
 
         else:
-            forced_colors = []
-            for (color, times) in force_color.items():
-                for c in ([color] * times):
-                    forced_colors.append(c)
-
-            node_colors = np.random.choice(
-                possible_colors,
-                size=n_nodes - len(forced_colors),
-                replace=True,
-                p=node_distribution_2).tolist() + forced_colors
-
-            np.random.shuffle(node_colors)
-
-            if force_color_position is not None:
-                # TODO: only work for 2 colors
-                (c_1, p_1), (c_2, p_2) = force_color_position.items()
-
-                # search for the color index
-                c1_pos = np.where(node_colors == c_1)
-                c2_pos = np.where(node_colors == c_2)
-
-                # swap the values
-                node_colors[[p_1, c1_pos]] = node_colors[[c1_pos, p_1]]
-                node_colors[[p_2, c2_pos]] = node_colors[[c2_pos, p_2]]
-
-        nx.set_node_attributes(graph, dict(
-            zip(graph, node_colors)), name="color")
-
-        # placeholder
-        graph.graph["label"] = 0
+            graph = __coloring_logic(
+                graph=graph,
+                split_line=split_line,
+                number=i,
+                partition=partition_1,
+                possible_colors=possible_colors,
+                node_distribution_1=node_distribution_1,
+                node_distribution_2=node_distribution_2,
+                structure_fn=structure_fn,
+                force_color=force_color,
+                force_color_position=force_color_position)
 
         yield graph
+
+
+def __tagging_logic(graph, formula):
+    node_colors = [node[1] for node in graph.nodes(data="color")]
+
+    labels, graph_label = formula(node_colors)
+
+    graph.graph["label"] = graph_label
+
+    for node_id in graph:
+        graph.node[node_id]["label"] = labels[node_id]
+
+    return graph, graph_label, len(labels), sum(labels)
 
 
 def tagger(input_file: str,
@@ -288,18 +522,13 @@ def tagger(input_file: str,
 
     for i, graph in enumerate(reader):
         print(f"{i}/{n_graphs} graphs tagged")
-        node_colors = [node[1] for node in graph.nodes(data="color")]
 
-        labels, graph_label = formula(node_colors)
+        graph, graph_label, num_nodes, num_ones = __tagging_logic(
+            graph=graph, formula=formula)
 
-        graph.graph["label"] = graph_label
         total_property += graph_label
-
-        total_nodes += len(labels)
-        total_tagged += sum(labels)
-
-        for node_id in graph:
-            graph.node[node_id]["label"] = labels[node_id]
+        total_nodes += num_nodes
+        total_tagged += num_ones
 
         yield graph
     print("-- finished tagging")
@@ -322,6 +551,60 @@ def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
     return np.zeros(features.shape[0]).astype(int), 0
 
 
+def online_generator(
+        node_distribution,
+        min_nodes,
+        max_nodes,
+        structure_fn,
+        variable_degree,
+        n_colors,
+        force_color,
+        force_color_position,
+        random_state,
+        split_line,
+        formula,
+        **kwargs):
+
+    fn = None
+    if structure_fn == "empty":
+        fn = __generate_empty_graph
+
+    elif structure_fn == "degree":
+        fn = __generate_graph_by_degree
+
+    elif structure_fn == "line":
+        fn = __generate_line_graph
+
+    elif structure_fn == "random":
+        fn = __generate_random_graph
+
+    else:
+        raise ValueError()
+
+    n_nodes = random.randint(min_nodes, max_nodes)
+    graph = fn(
+        n_nodes=n_nodes,
+        seed=random_state,
+        use_random=variable_degree,
+        **kwargs)
+
+    graph = __coloring_logic(
+        graph=graph,
+        split_line=split_line,
+        number=1,
+        partition=0,
+        possible_colors=range(n_colors),
+        node_distribution_1=None,
+        node_distribution_2=node_distribution,
+        structure_fn=structure_fn,
+        force_color=force_color,
+        force_color_position=force_color_position)
+
+    graph = __tagging_logic(graph, formula)
+
+    return graph
+
+
 def train_dataset(
         name,
         seed,
@@ -330,6 +613,7 @@ def train_dataset(
         n_min,
         n_max,
         random_degrees,
+        edges,
         no_green=False,
         **kwargs):
     random.seed(seed)
@@ -340,16 +624,21 @@ def train_dataset(
     graph_distribution = [0.5, 0.5]
 
     # on the second graph split, force 1 green (0) in each graph
+    #force_color = {0: 1, 1: 1}
     force_color = {0: 1}
-    force_pos = {}
+    #force_pos = {0: 0, 1: -1}
+    force_pos = None
 
     # 1/2 red (1), 0.5/4 the others
     red_prob = 0.5
+    #red_prob = 1. / n_colors
 
     green_prob = 0
+    #green_prob = 1. / n_colors
     others = (1. - red_prob - green_prob) / (n_colors - 2)
     node_distribution_1 = [red_prob] + [others] * (n_colors - 2)
 
+    #red_prob = 0.9
     if not no_green:
         green_prob = (1. - red_prob) / (n_colors - 1)
     others = (1. - red_prob - green_prob) / (n_colors - 2)
@@ -369,8 +658,8 @@ def train_dataset(
         # file_input="MUTAG.txt",
         random_state=seed,
         force_color=force_color,
-        force_color_position=None,
-        p=0.3,
+        force_color_position=force_pos,
+        p=edges,
         **kwargs)  # random.random()
 
     i = random.randint(0, 1000)
@@ -379,7 +668,7 @@ def train_dataset(
     label_generator = tagger(input_file=f"temp{i}.txt", formula=tagger_fn)
     write_graphs(
         label_generator,
-        filename=f"../data/train-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}.txt",
+        filename=f"../data/train-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}-{edges}.txt",
         write_features=["color"])
 
 
@@ -391,6 +680,7 @@ def test_dataset(
         n_min,
         n_max,
         random_degrees,
+        edges,
         no_green=False,
         **kwargs):
     random.seed(seed)
@@ -401,16 +691,21 @@ def test_dataset(
     graph_distribution = [0.5, 0.5]
 
     # on the second graph split, force 1 green (0) in each graph
+    #force_color = {0: 1, 1: 1}
     force_color = {0: 1}
-    force_pos = {}
+    #force_pos = {0: 0, 1: -1}
+    force_pos = None
 
     # 1/2 red (1), 0.5/4 the others
     red_prob = 0.5
+    #red_prob = 1. / n_colors
 
     green_prob = 0
+    #green_prob = 1. / n_colors
     others = (1. - red_prob - green_prob) / (n_colors - 2)
     node_distribution_1 = [red_prob] + [others] * (n_colors - 2)
 
+    #red_prob = 0.7
     if not no_green:
         green_prob = (1. - red_prob) / (n_colors - 1)
     others = (1. - red_prob - green_prob) / (n_colors - 2)
@@ -430,8 +725,8 @@ def test_dataset(
         # file_input="MUTAG.txt",
         random_state=seed,
         force_color=force_color,
-        force_color_position=None,
-        p=0.3,
+        force_color_position=force_pos,
+        p=edges,
         **kwargs)  # random.random()
 
     i = random.randint(0, 1000)
@@ -440,32 +735,59 @@ def test_dataset(
     label_generator = tagger(input_file=f"temp{i}.txt", formula=tagger_fn)
     write_graphs(
         label_generator,
-        filename=f"../data/test-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}.txt",
+        filename=f"../data/test-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}-{edges}.txt",
         write_features=["color"])
 
 
 if __name__ == "__main__":
 
+    # if int -> indices
+    #_split_line = {"split": [10]}
+    _split_line = None
+
+    # only_extreme=True|False
+
     train_dataset(
-        name="line",
-        seed=3452,
+        name="random",
+        seed=None,
         n_colors=5,
         number_of_graphs=5000,
-        n_min=10,
-        n_max=50,
-        random_degrees=False,
+        n_min=50,
+        n_max=100,
+        random_degrees=True,
         min_degree=0,
         max_degree=2,
-        no_green=True)
+        no_green=False,
+        special_line=True,
+        edges=0.1,
+        split_line=_split_line)
 
-    test_dataset(
-        name="line",
-        seed=1435,
-        n_colors=5,
-        number_of_graphs=100,
-        n_min=100,
-        n_max=120,
-        random_degrees=False,
-        min_degree=0,
-        max_degree=2,
-        no_green=True)
+    # test_dataset(
+    #     name="random",
+    #     seed=None,
+    #     n_colors=5,
+    #     number_of_graphs=100,
+    #     n_min=50,
+    #     n_max=100,
+    #     random_degrees=True,
+    #     min_degree=0,
+    #     max_degree=2,
+    #     no_green=False,
+    #     special_line=True,
+    #     edges=0.01,
+    #     split_line=_split_line)
+
+    # test_dataset(
+    #     name="random",
+    #     seed=None,
+    #     n_colors=5,
+    #     number_of_graphs=100,
+    #     n_min=100,
+    #     n_max=200,
+    #     random_degrees=True,
+    #     min_degree=0,
+    #     max_degree=2,
+    #     no_green=False,
+    #     special_line=True,
+    #     edges=0.01,
+    #     split_line=_split_line)

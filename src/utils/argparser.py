@@ -98,7 +98,7 @@ def argument_parser():
         choices=[
             "acrgnn",
             "acgnn",
-            "gin"],
+            "gingnn"],
         help='Type of GNN to use. a=Aggregate, c=Combine, r=Readout')
     parser.add_argument(
         '--recursive_weighting',

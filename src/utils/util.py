@@ -40,6 +40,17 @@ class S2VGraph(object):
 # ! classes such that they actually represent their index.
 
 
+class OnlineLoader:
+    def __init__(self, degree_as_node_label):
+        self.graph_label_dict: Dict[int, int] = {}
+
+        self.node_labels: Dict[int, int] = {}
+        self.node_features: Dict[int, int] = {}
+
+    def __call__(selg, graph):
+        ...
+
+
 def load_data(dataset: str,
               degree_as_node_label: bool = False,
               graph_type: int = 2,) -> Tuple[List[S2VGraph],
