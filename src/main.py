@@ -1,4 +1,5 @@
-from typing import List
+import logging
+from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -9,7 +10,18 @@ from tqdm import tqdm
 
 from models import *
 from utils.argparser import argument_parser
+from utils.graphs import online_generator
 from utils.util import load_data, separate_data
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(message)s",
+    filename="logging/logger.log")
+
+
+def __batch_generator(configuration, batch_size):
+    ...
 
 
 def train(
@@ -20,7 +32,8 @@ def train(
         optimizer,
         criterion,
         scheduler,
-        epoch) -> float:
+        epoch,
+        online=None) -> float:
     model.train()
 
     total_iters = args.iters_per_epoch
@@ -29,12 +42,17 @@ def train(
     loss_accum = 0
     for pos in pbar:
 
-        try:
-            batch_graph = np.random.choice(
-                train_graphs, size=args.batch_size, replace=False)
-        except ValueError:
-            batch_graph = np.random.choice(
-                train_graphs, size=args.batch_size, replace=True)
+        # batch_graph = train_graphs
+        if online is None:
+            try:
+                batch_graph = np.random.choice(
+                    train_graphs, size=args.batch_size, replace=False)
+            except ValueError:
+                batch_graph = np.random.choice(
+                    train_graphs, size=args.batch_size, replace=True)
+        else:
+            batch_graph = __batch_generator(online, args.batch_size)
+
         # batches_nodes -> all nodes in the batch
         # (sum(n_nodes(graph), classes), for graph in batch
         output = model(batch_graph)
@@ -97,6 +115,7 @@ def test(
         test_graphs,
         epoch,
         run_test,
+        criterion,
         another_test=None):
     model.eval()
 
@@ -105,6 +124,17 @@ def test(
         model, train_graphs)
     output = torch.sigmoid(output)
     _, predicted_labels = output.max(dim=1)
+
+    ######
+
+    pred_zeros = np.sum(predicted_labels.cpu().numpy() == 0)
+    pred_ones = np.sum(predicted_labels.cpu().numpy() == 1)
+    real_zeros = np.sum(np.array(labels) == 0)
+    real_ones = np.sum(np.array(labels) == 1)
+    logging.info(f"Epoch {epoch} - Train")
+    logging.info(f"Predicted 0s: {pred_zeros}/{real_zeros}")
+    logging.info(f"Predicted 1s: {pred_ones}/{real_ones}")
+    ######
 
     # equals both vectors, prediction == label
     results = np.equal(predicted_labels.cpu(), labels).numpy()
@@ -127,11 +157,30 @@ def test(
             output = torch.sigmoid(output)
             _, predicted_labels = output.max(dim=1)
 
+            # test loss
+            _labels = torch.tensor(
+                labels, dtype=torch.long).unsqueeze(dim=1).to(device)
+            _labels = torch.zeros_like(output).scatter_(
+                1, _labels, 1.).to(device)
+
+            test1_loss = criterion(output, _labels).detach().cpu().numpy()
+
             # equals both vectors, prediction == label
             results = np.equal(predicted_labels.cpu(), labels).numpy()
 
             # micro average -> mean between all nodes
             test_micro_avg = np.mean(results)
+
+            ######
+            pred_zeros = np.sum(predicted_labels.cpu().numpy() == 0)
+            pred_ones = np.sum(predicted_labels.cpu().numpy() == 1)
+            real_zeros = np.sum(np.array(labels) == 0)
+            real_ones = np.sum(np.array(labels) == 1)
+
+            logging.info(f"Epoch {epoch} - Test1")
+            logging.info(f"Predicted 0s: {pred_zeros}/{real_zeros}")
+            logging.info(f"Predicted 1s: {pred_ones}/{real_ones}")
+            ######
 
             # split node equality by graph, we dont need the last value of
             # `indices`
@@ -145,8 +194,28 @@ def test(
                 output = torch.sigmoid(output)
                 _, predicted_labels = output.max(dim=1)
 
+                # test loss
+                _labels = torch.tensor(
+                    labels, dtype=torch.long).unsqueeze(
+                    dim=1).to(device)
+                _labels = torch.zeros_like(output).scatter_(
+                    1, _labels, 1.).to(device)
+
+                test2_loss = criterion(output, _labels).detach().cpu().numpy()
+
                 # equals both vectors, prediction == label
                 results = np.equal(predicted_labels.cpu(), labels).numpy()
+
+                ######
+                pred_zeros = np.sum(predicted_labels.cpu().numpy() == 0)
+                pred_ones = np.sum(predicted_labels.cpu().numpy() == 1)
+                real_zeros = np.sum(np.array(labels) == 0)
+                real_ones = np.sum(np.array(labels) == 1)
+
+                logging.info(f"Epoch {epoch} - Test2")
+                logging.info(f"Predicted 0s: {pred_zeros}/{real_zeros}")
+                logging.info(f"Predicted 1s: {pred_ones}/{real_ones}")
+                ######
 
                 # micro average -> mean between all nodes
                 test_another_micro_avg = np.mean(results)
@@ -159,6 +228,8 @@ def test(
                 test_another_macro_avg = np.mean(
                     [np.mean(graph) for graph in macro_split])
 
+    print(f"Test1 loss: {test1_loss}")
+    print(f"Test2 loss: {test2_loss}")
     print(
         f"Train accuracy: micro: {train_micro_avg}\tmacro: {train_macro_avg}")
     print(f"Test accuracy: micro: {test_micro_avg}\tmacro: {test_macro_avg}")
@@ -166,9 +237,10 @@ def test(
         print(
             f"Test accuracy: micro: {test_another_micro_avg}\tmacro: {test_another_macro_avg}")
 
-        return train_micro_avg, train_macro_avg, test_micro_avg, test_macro_avg, test_another_micro_avg, test_another_macro_avg
+        return train_micro_avg, train_macro_avg, test_micro_avg, test_macro_avg, test_another_micro_avg, test_another_macro_avg, test1_loss, test2_loss
 
-    return train_micro_avg, train_macro_avg, test_micro_avg, test_macro_avg, -1, -1
+    return train_micro_avg, train_macro_avg, test_micro_avg, test_macro_avg, - \
+        1, -1, test1_loss, -1
 
 
 def main(
@@ -176,7 +248,10 @@ def main(
         data_train=None,
         data_test=None,
         n_classes=None,
-        another_test=None):
+        another_test=None,
+        save_model=None,
+        load_model=None,
+        train_model=True):
     # set up seeds and gpu device
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -222,7 +297,7 @@ def main(
         _model = ACGNN
     elif args.network == "acrgnn":
         _model = ACRGNN
-    elif args.network == "gin":
+    elif args.network == "gingnn":
         _model = GIN
     else:
         raise ValueError()
@@ -240,7 +315,13 @@ def main(
         mlp_aggregate=args.mlp_combine_agg,
         recursive_weighting=args.recursive_weighting,
         task=args.task_type,
-        device=device).to(device)
+        device=device)
+
+    if load_model is not None:
+        print("Loading Model")
+        model.load_state_dict(torch.load(load_model))
+
+    model = model.to(device)
 
     criterion = nn.BCEWithLogitsLoss(reduction='mean')
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
@@ -249,101 +330,166 @@ def main(
     if not args.filename == "":
         with open(args.filename, 'w') as f:
             f.write(
-                "Epoch,Loss,train_micro,train_macro,test_micro,test_macro,,test_micro2,test_macro2\n")
+                "Epoch,train_loss,test1_loss,test2_loss,train_micro,train_macro,test1_micro,test1_macro,test2_micro,test2_macro\n")
 
-    # `epoch` is only for printing purposes
-    for epoch in range(1, args.epochs + 1):
+    if train_model:
+        # `epoch` is only for printing purposes
+        for epoch in range(1, args.epochs + 1):
 
-        avg_loss = train(
-            args=args,
-            model=model,
-            device=device,
-            train_graphs=train_graphs,
-            optimizer=optimizer,
-            criterion=criterion,
-            scheduler=scheduler,
-            epoch=epoch)
+            avg_loss = train(
+                args=args,
+                model=model,
+                device=device,
+                train_graphs=train_graphs,
+                optimizer=optimizer,
+                criterion=criterion,
+                scheduler=scheduler,
+                epoch=epoch)
 
-        # run the test set only every 20 epochs
-        if epoch % args.test_every == 0:
-            train_micro, train_macro, test_micro, test_macro, test_micro2, test_macro2 = test(
-                args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=True, another_test=another_test)
-        else:
-            train_micro, train_macro, test_micro, test_macro, test_micro2, test_macro2 = test(
-                args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=False, another_test=another_test)
+            # run the test set only every 20 epochs
+            if epoch % args.test_every == 0:
+                train_micro, train_macro, test_micro, test_macro, test_micro2, test_macro2, test1_loss, test2_loss = test(
+                    args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=True, another_test=another_test, criterion=criterion)
+            else:
+                train_micro, train_macro, test_micro, test_macro, test_micro2, test_macro2, test1_loss, test2_loss = test(
+                    args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=False, another_test=another_test, criterion=criterion)
 
-        if not args.filename == "":
-            with open(args.filename, 'a') as f:
-                f.write(
-                    f"{epoch},{avg_loss:.6f},{train_micro:.4f},{train_macro:.4f},{test_micro:.4f},{test_macro:.4f},{test_micro2:.4f},{test_macro2:.4f}\n")
+            if not args.filename == "":
+                with open(args.filename, 'a') as f:
+                    f.write(
+                        f"{epoch},{avg_loss:.10f},{test1_loss:.10f},{test2_loss:.10f},{train_micro:.8f},{train_macro:.8f},{test_micro:.8f},{test_macro:.8f},{test_micro2:.8f},{test_macro2:.8f}\n")
+
+        if save_model is not None:
+            torch.save(model.state_dict(), save_model)
+
+    else:
+
+        train_micro, train_macro, test_micro, test_macro, test_micro2, test_macro2, test1_loss, test2_loss = test(
+            args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=True, another_test=another_test, criterion=criterion)
+
+        with open(args.filename, 'a') as f:
+            f.write(
+                f"{epoch},{test1_loss:.10f},{test2_loss:.10f},{train_micro:.8f},{train_macro:.8f},{test_micro:.8f},{test_macro:.8f},{test_micro2:.8f},{test_macro2:.8f}\n")
 
 
 if __name__ == '__main__':
 
     # agg, read, comb
     _networks = [
-        # [{"average": "A"}, {"max": "M"}, {"trainable": "T"}],
-        # [{"average": "A"}, {"average": "A"}, {"trainable": "T"}],
+        [{"average": "A"}, {"average": "A"}, {"trainable": "T"}],
+        [{"average": "A"}, {"average": "A"}, {"mlp": "MLP"}],
+        [{"average": "A"}, {"max": "M"}, {"trainable": "T"}],
+        [{"average": "A"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"average": "A"}, {"sum": "S"}, {"trainable": "T"}],
+        [{"average": "A"}, {"sum": "S"}, {"mlp": "MLP"}],
+
         [{"max": "M"}, {"average": "A"}, {"trainable": "T"}],
+        [{"max": "M"}, {"average": "A"}, {"mlp": "MLP"}],
         [{"max": "M"}, {"max": "M"}, {"trainable": "T"}],
-        # [{"max": "M"}, {"average": "A"}, {"mlp": "MLP"}],
-        # [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}]
+        [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"sum": "S"}, {"trainable": "T"}],
+        [{"max": "M"}, {"sum": "S"}, {"mlp": "MLP"}],
+
+        [{"sum": "S"}, {"average": "A"}, {"trainable": "T"}],
+        [{"sum": "S"}, {"average": "A"}, {"mlp": "MLP"}],
+        [{"sum": "S"}, {"max": "M"}, {"trainable": "T"}],
+        [{"sum": "S"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"sum": "S"}, {"sum": "S"}, {"trainable": "T"}],
+        [{"sum": "S"}, {"sum": "S"}, {"mlp": "MLP"}],
     ]
 
-    use_dataset = "degree-0y2"
-
     print("Start running")
-    for enum, (_train, _test1, _test2) in enumerate([
-        (f"train-{use_dataset}-5000-10-50-v0.125-v1",
-         f"test-{use_dataset}-100-10-50-v0.125-v1",
-         f"test-{use_dataset}-100-100-120-v0.125-v1"),
-        (f"train-{use_dataset}-5000-10-50-v0-v1",
-         f"test-{use_dataset}-100-10-50-v0-v1",
-         f"test-{use_dataset}-100-100-120-v0-v1")
-    ]):
-        print(f"Start for dataset {_train}-{_test1}-{_test2}")
+    for key in ["random"]:
+        for enum, (_train, _test1, _test2) in enumerate([
+            ("train-random-5000-50-100-v0.125-v1-0.3",
+             "test-random-100-50-100-v0.125-v1-0.1",
+             "test-random-100-100-200-v0.125-v1-0.1"),
+            ("train-random-5000-50-100-v0.125-v1-0.1",
+             "test-random-100-50-100-v0.125-v1-0.1",
+             "test-random-100-100-200-v0.125-v1-0.1"),
+            ("train-random-5000-50-100-v0.125-v1-0.01",
+             "test-random-100-50-100-v0.125-v1-0.1",
+             "test-random-100-100-200-v0.125-v1-0.1"),
 
-        _train_graphs, (_, _, _n_node_labels) = load_data(
-            dataset=f"data/{use_dataset}/{_train}.txt", degree_as_node_label=False)
+            # ("train-random-5000-50-100-v0.125-v1-0.3",
+            #  "test-random-100-50-100-v0.125-v1-0.1",
+            #  "test-random-100-100-200-v0.125-v1-0.1"),
+            # ("train-random-5000-50-100-v0.125-v1-0.1",
+            #  "test-random-100-50-100-v0.125-v1-0.1",
+            #  "test-random-100-100-200-v0.125-v1-0.1"),
+            # ("train-random-5000-50-100-v0.125-v1-0.01",
+            #  "test-random-100-50-100-v0.125-v1-0.1",
+            #  "test-random-100-100-200-v0.125-v1-0.1"),
 
-        _test_graphs, _ = load_data(
-            dataset=f"data/{use_dataset}/{_test1}.txt", degree_as_node_label=False)
+            # ("train-random-5000-50-100-v0.125-v1-0.3",
+            #  "test-random-100-50-100-v0.125-v1-0.01",
+            #  "test-random-100-100-200-v0.125-v1-0.01"),
+            # ("train-random-5000-50-100-v0.125-v1-0.1",
+            #  "test-random-100-50-100-v0.125-v1-0.01",
+            #  "test-random-100-100-200-v0.125-v1-0.01"),
+            # ("train-random-5000-50-100-v0.125-v1-0.01",
+            #  "test-random-100-50-100-v0.125-v1-0.01",
+            #  "test-random-100-100-200-v0.125-v1-0.01"),
+        ]):
+            print(f"Start for dataset {_train}-{_test1}-{_test2}")
 
-        _test_graphs2, _ = load_data(
-            dataset=f"data/{use_dataset}/{_test2}.txt", degree_as_node_label=False)
+            _train_graphs, (_, _, _n_node_labels) = load_data(
+                dataset=f"data/{key}/{_train}.txt",
+                degree_as_node_label=False)
 
-        for _net_class in ["ac", "acr"]:
-            for l in [2, 57]:
-                for a, r, c in _networks:
+            _test_graphs, _ = load_data(
+                dataset=f"data/{key}/{_test1}.txt",
+                degree_as_node_label=False)
 
-                    print(a, r, c, _net_class)
+            _test_graphs2, _ = load_data(
+                dataset=f"data/{key}/{_test2}.txt",
+                degree_as_node_label=False)
+            # _train_graphs, (_, _, _n_node_labels) = load_data(
+            #     dataset=f"test.txt",
+            #     degree_as_node_label=False)
 
-                    (_agg, _agg_abr) = list(a.items())[0]
-                    (_read, _read_abr) = list(r.items())[0]
-                    (_comb, _comb_abr) = list(c.items())[0]
+            for l in [2, 5, 7, 10]:
+                for _net_class in ["ac", "gin", "acr"]:
+                    for a, r, c in _networks:
 
-                    if _net_class == "ac" and _read == "max":
-                        continue
+                        (_agg, _agg_abr) = list(a.items())[0]
+                        (_read, _read_abr) = list(r.items())[0]
+                        (_comb, _comb_abr) = list(c.items())[0]
 
-                    _args = argument_parser().parse_args(
-                        [
-                            f"--readout={_read}",
-                            f"--aggregate={_agg}",
-                            f"--combine={_comb}",
-                            f"--network={_net_class}gnn",
-                            f"--mlp_combine_agg=sum",
-                            f"--filename={use_dataset}-{enum}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
-                            "--epochs=50",
-                            # "--no_test",
-                            f"--batch_size=32",
-                            "--test_every=1",
-                            f"--hidden_dim=64",
-                            f"--num_layers={l}"
-                        ])
+                        print(a, r, c, _net_class, l)
+                        logging.info(f"{key}-{_net_class}-{_read_abr}")
+                        logging.info(f"{a}, {r}, {c}, {_net_class}")
 
-                    main(
-                        _args,
-                        data_train=_train_graphs,
-                        data_test=_test_graphs,
-                        n_classes=_n_node_labels,
-                        another_test=_test_graphs2)
+                        if (_net_class == "ac" or _net_class == "gin") and (
+                                _read == "max" or _read == "sum"):
+                            continue
+                        elif _net_class == "gin" and _comb == "mlp":
+                            continue
+
+                        _args = argument_parser().parse_args(
+                            [
+                                f"--readout={_read}",
+                                f"--aggregate={_agg}",
+                                f"--combine={_comb}",
+                                f"--network={_net_class}gnn",
+                                f"--mlp_combine_agg=sum",
+                                f"--filename=logging/{key}-{enum}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
+                                "--epochs=10",
+                                "--iters_per_epoch=50",
+                                # "--no_test",
+                                f"--batch_size=32",
+                                "--test_every=1",
+                                f"--hidden_dim=64",
+                                f"--num_layers={l}"
+                            ])
+
+                        main(
+                            _args,
+                            data_train=_train_graphs,
+                            data_test=_test_graphs,
+                            n_classes=_n_node_labels,
+                            another_test=_test_graphs2,
+                            # save_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
+                            train_model=False,
+                            load_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth"
+                        )
