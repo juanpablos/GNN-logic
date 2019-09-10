@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from networkx.classes.function import nodes
 from tqdm import tqdm
 
 from models import *
@@ -190,7 +189,7 @@ def test(
 
             if another_test is not None:
                 output, n_nodes, indices, labels = pass_data_iteratively(
-                    model, test_graphs)
+                    model, another_test)
                 output = torch.sigmoid(output)
                 _, predicted_labels = output.max(dim=1)
 
@@ -330,7 +329,7 @@ def main(
     if not args.filename == "":
         with open(args.filename, 'w') as f:
             f.write(
-                "Epoch,train_loss,test1_loss,test2_loss,train_micro,train_macro,test1_micro,test1_macro,test2_micro,test2_macro\n")
+                "train_loss,test1_loss,test2_loss,train_micro,train_macro,test1_micro,test1_macro,test2_micro,test2_macro\n")
 
     if train_model:
         # `epoch` is only for printing purposes
@@ -357,10 +356,12 @@ def main(
             if not args.filename == "":
                 with open(args.filename, 'a') as f:
                     f.write(
-                        f"{epoch},{avg_loss:.10f},{test1_loss:.10f},{test2_loss:.10f},{train_micro:.8f},{train_macro:.8f},{test_micro:.8f},{test_macro:.8f},{test_micro2:.8f},{test_macro2:.8f}\n")
+                        f"{avg_loss:.10f},{test1_loss:.10f},{test2_loss:.10f},{train_micro:.8f},{train_macro:.8f},{test_micro:.8f},{test_macro:.8f},{test_micro2:.8f},{test_macro2:.8f}\n")
 
         if save_model is not None:
             torch.save(model.state_dict(), save_model)
+
+        return f"{avg_loss:.10f},{test1_loss:.10f},{test2_loss:.10f},{train_micro:.8f},{train_macro:.8f},{test_micro:.8f},{test_macro:.8f},{test_micro2:.8f},{test_macro2:.8f},"
 
     else:
 
@@ -370,6 +371,8 @@ def main(
         with open(args.filename, 'a') as f:
             f.write(
                 f"{test1_loss:.10f},{test2_loss:.10f},{train_micro:.8f},{train_macro:.8f},{test_micro:.8f},{test_macro:.8f},{test_micro2:.8f},{test_macro2:.8f}\n")
+
+        return f"{test1_loss:.10f},{test2_loss:.10f},{train_micro:.8f},{train_macro:.8f},{test_micro:.8f},{test_macro:.8f},{test_micro2:.8f},{test_macro2:.8f},"
 
 
 if __name__ == '__main__':
@@ -399,15 +402,21 @@ if __name__ == '__main__':
     ]
 
     print("Start running")
-    for key in ["random"]:
+    for key in ["mix"]:
         for enum, (_train, _test1, _test2) in enumerate([
-            ("train-random-5000-50-100-v0.125-v1-0.025",
-             "test-random-100-50-100-v0.125-v1-0.025",
-             "test-random-100-100-200-v0.125-v1-0.025"),
-            # ("train-random-5000-50-100-v0.125-v1-0.1",
+            ("train-mix-5000-50-100",
+             "test-random-500-50-100-prop-125",
+             "test-random-500-100-200-prop-125"),
+            # ("train-mix-5000-50-100",
+            #  "test-random-100-50-100-v0.125-v1-0.025",
+            #  "test-random-100-100-200-v0.125-v1-0.025"),
+            # ("train-mix-5000-50-100",
             #  "test-random-100-50-100-v0.125-v1-0.01",
             #  "test-random-100-100-200-v0.125-v1-0.01"),
-            # ("train-random-5000-50-100-v0.125-v1-0.01",
+            # ("train-random-5000-50-100-v0.125-v1-0.025",
+            #  "test-random-100-50-100-v0.125-v1-0.1",
+            #  "test-random-100-100-200-v0.125-v1-0.1"),
+            # ("train-random-5000-50-100-v0.125-v1-0.025",
             #  "test-random-100-50-100-v0.125-v1-0.01",
             #  "test-random-100-100-200-v0.125-v1-0.01"),
 
@@ -432,42 +441,41 @@ if __name__ == '__main__':
             #  "test-random-100-100-200-v0.125-v1-0.01"),
         ]):
 
-            enum = 3
-
             print(f"Start for dataset {_train}-{_test1}-{_test2}")
 
             _train_graphs, (_, _, _n_node_labels) = load_data(
-                dataset=f"data/{key}/{_train}.txt",
+                dataset=f"data/{_train}.txt",
                 degree_as_node_label=False)
 
             _test_graphs, _ = load_data(
-                dataset=f"data/{key}/{_test1}.txt",
+                dataset=f"data/{_test1}.txt",
                 degree_as_node_label=False)
 
             _test_graphs2, _ = load_data(
-                dataset=f"data/{key}/{_test2}.txt",
+                dataset=f"data/{_test2}.txt",
                 degree_as_node_label=False)
             # _train_graphs, (_, _, _n_node_labels) = load_data(
             #     dataset=f"test.txt",
             #     degree_as_node_label=False)
 
-            for l in [2, 5, 7, 10]:
-                for _net_class in ["ac", "gin", "acr"]:
-                    for a, r, c in _networks:
+            for _net_class in ["ac", "gin", "acr"]:
+                filename = f"logging/{key}-{enum}-{_net_class}.mix"
+                for a, r, c in _networks:
+                    (_agg, _agg_abr) = list(a.items())[0]
+                    (_read, _read_abr) = list(r.items())[0]
+                    (_comb, _comb_abr) = list(c.items())[0]
 
-                        (_agg, _agg_abr) = list(a.items())[0]
-                        (_read, _read_abr) = list(r.items())[0]
-                        (_comb, _comb_abr) = list(c.items())[0]
+                    if (_net_class == "ac" or _net_class == "gin") and (
+                            _read == "max" or _read == "sum"):
+                        continue
+                    elif _net_class == "gin" and _comb == "mlp":
+                        continue
+
+                    for l in [2, 5]:
 
                         print(a, r, c, _net_class, l)
                         logging.info(f"{key}-{_net_class}-{_read_abr}")
                         logging.info(f"{a}, {r}, {c}, {_net_class}")
-
-                        if (_net_class == "ac" or _net_class == "gin") and (
-                                _read == "max" or _read == "sum"):
-                            continue
-                        elif _net_class == "gin" and _comb == "mlp":
-                            continue
 
                         _args = argument_parser().parse_args(
                             [
@@ -486,13 +494,21 @@ if __name__ == '__main__':
                                 f"--num_layers={l}"
                             ])
 
-                        main(
+                        line = main(
                             _args,
                             data_train=_train_graphs,
                             data_test=_test_graphs,
                             n_classes=_n_node_labels,
                             another_test=_test_graphs2,
-                            save_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
-                            train_model=True,
-                            # load_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth"
+                            # save_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
+                            train_model=False,
+                            load_model=f"saved_models/MODEL-{_net_class}-{key}-0-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth"
                         )
+
+                        # append results per layer
+                        with open(filename, 'a') as f:
+                            f.write(line)
+
+                    # next combination
+                    with open(filename, 'a') as f:
+                        f.write("\n")
