@@ -66,7 +66,8 @@ def argument_parser():
         choices=[
             "sum",
             "average",
-            "max"],
+            "max",
+            "0"],
         help='Pooling for over neighboring nodes: sum, average or max')
     parser.add_argument(
         '--combine',

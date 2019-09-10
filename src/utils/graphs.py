@@ -59,7 +59,13 @@ def __generate_random_graph(
         n_nodes: int,
         p: float,
         seed: int,
+        force_proportion=None,
         **kwargs) -> nx.Graph:
+
+    if force_proportion is not None:
+        return nx.gnm_random_graph(
+            n_nodes, n_nodes * force_proportion, seed=seed)
+
     return nx.fast_gnp_random_graph(n=n_nodes, p=p, seed=seed)
 
 
@@ -747,11 +753,27 @@ if __name__ == "__main__":
 
     # only_extreme=True|False
 
-    train_dataset(
+    # train_dataset(
+    #     name="random",
+    #     seed=None,
+    #     n_colors=5,
+    #     number_of_graphs=5000,
+    #     n_min=50,
+    #     n_max=100,
+    #     random_degrees=True,
+    #     min_degree=0,
+    #     max_degree=2,
+    #     no_green=False,
+    #     special_line=True,
+    #     edges=0.025,
+    #     split_line=_split_line,
+    #     force_proportion=1.5)
+
+    test_dataset(
         name="random",
         seed=None,
         n_colors=5,
-        number_of_graphs=5000,
+        number_of_graphs=500,
         n_min=50,
         n_max=100,
         random_degrees=True,
@@ -760,28 +782,14 @@ if __name__ == "__main__":
         no_green=False,
         special_line=True,
         edges=0.025,
-        split_line=_split_line)
+        split_line=_split_line,
+        force_proportion=1.25)
 
     test_dataset(
         name="random",
         seed=None,
         n_colors=5,
-        number_of_graphs=100,
-        n_min=50,
-        n_max=100,
-        random_degrees=True,
-        min_degree=0,
-        max_degree=2,
-        no_green=False,
-        special_line=True,
-        edges=0.025,
-        split_line=_split_line)
-
-    test_dataset(
-        name="random",
-        seed=None,
-        n_colors=5,
-        number_of_graphs=100,
+        number_of_graphs=500,
         n_min=100,
         n_max=200,
         random_degrees=True,
@@ -790,4 +798,5 @@ if __name__ == "__main__":
         no_green=False,
         special_line=True,
         edges=0.025,
-        split_line=_split_line)
+        split_line=_split_line,
+        force_proportion=1.25)

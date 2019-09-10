@@ -70,10 +70,10 @@ def train(
 
         # backprop
         if optimizer is not None:
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             scheduler.step()
-            optimizer.zero_grad()
 
         loss_accum += loss.detach().cpu().numpy()
 
@@ -88,7 +88,7 @@ def train(
 
 # pass data to model with minibatch during testing to avoid memory
 # overflow (does not perform backpropagation)
-def pass_data_iteratively(model, graphs, minibatch_size=32):
+def pass_data_iteratively(model, graphs, minibatch_size=128):
     def chunks(iterable, n):
         for i in range(0, len(iterable), n):
             yield iterable[i:i + n]
@@ -118,92 +118,59 @@ def test(
         another_test=None):
     model.eval()
 
-    # --- train
-    output, n_nodes, indices, labels = pass_data_iteratively(
-        model, train_graphs)
-    output = torch.sigmoid(output)
-    _, predicted_labels = output.max(dim=1)
+    with torch.no_grad():
 
-    ######
+        # --- train
+        output, n_nodes, indices, labels = pass_data_iteratively(
+            model, train_graphs)
+        output = torch.sigmoid(output)
+        _, predicted_labels = output.max(dim=1)
 
-    pred_zeros = np.sum(predicted_labels.cpu().numpy() == 0)
-    pred_ones = np.sum(predicted_labels.cpu().numpy() == 1)
-    real_zeros = np.sum(np.array(labels) == 0)
-    real_ones = np.sum(np.array(labels) == 1)
-    logging.info(f"Epoch {epoch} - Train")
-    logging.info(f"Predicted 0s: {pred_zeros}/{real_zeros}")
-    logging.info(f"Predicted 1s: {pred_ones}/{real_ones}")
-    ######
+        ######
 
-    # equals both vectors, prediction == label
-    results = np.equal(predicted_labels.cpu(), labels).numpy()
+        pred_zeros = np.sum(predicted_labels.cpu().numpy() == 0)
+        pred_ones = np.sum(predicted_labels.cpu().numpy() == 1)
+        real_zeros = np.sum(np.array(labels) == 0)
+        real_ones = np.sum(np.array(labels) == 1)
+        logging.info(f"Epoch {epoch} - Train")
+        logging.info(f"Predicted 0s: {pred_zeros}/{real_zeros}")
+        logging.info(f"Predicted 1s: {pred_ones}/{real_ones}")
+        ######
 
-    # micro average -> mean between all nodes
-    train_micro_avg = np.mean(results)
+        # equals both vectors, prediction == label
+        results = np.equal(predicted_labels.cpu(), labels).numpy()
 
-    # split node equality by graph, we dont need the last value of `indices`
-    macro_split = np.split(results, indices[:-1])
-    # macro average -> mean between the mean of nodes for each graph
-    train_macro_avg = np.mean([np.mean(graph) for graph in macro_split])
+        # micro average -> mean between all nodes
+        train_micro_avg = np.mean(results)
 
-    # --- test
-    test_micro_avg, test_macro_avg = -1, -1
-    if not args.no_test:
-        if run_test:
+        # split node equality by graph, we dont need the last value of `indices`
+        macro_split = np.split(results, indices[:-1])
+        # macro average -> mean between the mean of nodes for each graph
+        train_macro_avg = np.mean([np.mean(graph) for graph in macro_split])
 
-            output, n_nodes, indices, labels = pass_data_iteratively(
-                model, test_graphs)
-            output = torch.sigmoid(output)
-            _, predicted_labels = output.max(dim=1)
+        # --- test
+        test_micro_avg, test_macro_avg = -1, -1
+        if not args.no_test:
+            if run_test:
 
-            # test loss
-            _labels = torch.tensor(
-                labels, dtype=torch.long).unsqueeze(dim=1).to(device)
-            _labels = torch.zeros_like(output).scatter_(
-                1, _labels, 1.).to(device)
-
-            test1_loss = criterion(output, _labels).detach().cpu().numpy()
-
-            # equals both vectors, prediction == label
-            results = np.equal(predicted_labels.cpu(), labels).numpy()
-
-            # micro average -> mean between all nodes
-            test_micro_avg = np.mean(results)
-
-            ######
-            pred_zeros = np.sum(predicted_labels.cpu().numpy() == 0)
-            pred_ones = np.sum(predicted_labels.cpu().numpy() == 1)
-            real_zeros = np.sum(np.array(labels) == 0)
-            real_ones = np.sum(np.array(labels) == 1)
-
-            logging.info(f"Epoch {epoch} - Test1")
-            logging.info(f"Predicted 0s: {pred_zeros}/{real_zeros}")
-            logging.info(f"Predicted 1s: {pred_ones}/{real_ones}")
-            ######
-
-            # split node equality by graph, we dont need the last value of
-            # `indices`
-            macro_split = np.split(results, indices[:-1])
-            # macro average -> mean between the mean of nodes for each graph
-            test_macro_avg = np.mean([np.mean(graph) for graph in macro_split])
-
-            if another_test is not None:
                 output, n_nodes, indices, labels = pass_data_iteratively(
-                    model, another_test)
+                    model, test_graphs)
                 output = torch.sigmoid(output)
                 _, predicted_labels = output.max(dim=1)
 
                 # test loss
                 _labels = torch.tensor(
-                    labels, dtype=torch.long).unsqueeze(
-                    dim=1).to(device)
+                    labels, dtype=torch.long).unsqueeze(dim=1).to(device)
                 _labels = torch.zeros_like(output).scatter_(
                     1, _labels, 1.).to(device)
 
-                test2_loss = criterion(output, _labels).detach().cpu().numpy()
+                test1_loss = criterion(output, _labels).detach().cpu().numpy()
 
                 # equals both vectors, prediction == label
                 results = np.equal(predicted_labels.cpu(), labels).numpy()
+
+                # micro average -> mean between all nodes
+                test_micro_avg = np.mean(results)
 
                 ######
                 pred_zeros = np.sum(predicted_labels.cpu().numpy() == 0)
@@ -211,21 +178,56 @@ def test(
                 real_zeros = np.sum(np.array(labels) == 0)
                 real_ones = np.sum(np.array(labels) == 1)
 
-                logging.info(f"Epoch {epoch} - Test2")
+                logging.info(f"Epoch {epoch} - Test1")
                 logging.info(f"Predicted 0s: {pred_zeros}/{real_zeros}")
                 logging.info(f"Predicted 1s: {pred_ones}/{real_ones}")
                 ######
 
-                # micro average -> mean between all nodes
-                test_another_micro_avg = np.mean(results)
-
                 # split node equality by graph, we dont need the last value of
                 # `indices`
                 macro_split = np.split(results, indices[:-1])
-                # macro average -> mean between the mean of nodes for each
-                # graph
-                test_another_macro_avg = np.mean(
-                    [np.mean(graph) for graph in macro_split])
+                # macro average -> mean between the mean of nodes for each graph
+                test_macro_avg = np.mean([np.mean(graph) for graph in macro_split])
+
+                if another_test is not None:
+                    output, n_nodes, indices, labels = pass_data_iteratively(
+                        model, another_test)
+                    output = torch.sigmoid(output)
+                    _, predicted_labels = output.max(dim=1)
+
+                    # test loss
+                    _labels = torch.tensor(
+                        labels, dtype=torch.long).unsqueeze(
+                        dim=1).to(device)
+                    _labels = torch.zeros_like(output).scatter_(
+                        1, _labels, 1.).to(device)
+
+                    test2_loss = criterion(output, _labels).detach().cpu().numpy()
+
+                    # equals both vectors, prediction == label
+                    results = np.equal(predicted_labels.cpu(), labels).numpy()
+
+                    ######
+                    pred_zeros = np.sum(predicted_labels.cpu().numpy() == 0)
+                    pred_ones = np.sum(predicted_labels.cpu().numpy() == 1)
+                    real_zeros = np.sum(np.array(labels) == 0)
+                    real_ones = np.sum(np.array(labels) == 1)
+
+                    logging.info(f"Epoch {epoch} - Test2")
+                    logging.info(f"Predicted 0s: {pred_zeros}/{real_zeros}")
+                    logging.info(f"Predicted 1s: {pred_ones}/{real_ones}")
+                    ######
+
+                    # micro average -> mean between all nodes
+                    test_another_micro_avg = np.mean(results)
+
+                    # split node equality by graph, we dont need the last value of
+                    # `indices`
+                    macro_split = np.split(results, indices[:-1])
+                    # macro average -> mean between the mean of nodes for each
+                    # graph
+                    test_another_macro_avg = np.mean(
+                        [np.mean(graph) for graph in macro_split])
 
     print(f"Test1 loss: {test1_loss}")
     print(f"Test2 loss: {test2_loss}")
@@ -399,116 +401,222 @@ if __name__ == '__main__':
         [{"sum": "S"}, {"max": "M"}, {"mlp": "MLP"}],
         [{"sum": "S"}, {"sum": "S"}, {"trainable": "T"}],
         [{"sum": "S"}, {"sum": "S"}, {"mlp": "MLP"}],
+
+        [{"0": "0"}, {"average": "A"}, {"trainable": "T"}],
+        [{"0": "0"}, {"average": "A"}, {"mlp": "MLP"}],
+        [{"0": "0"}, {"max": "M"}, {"trainable": "T"}],
+        [{"0": "0"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"0": "0"}, {"sum": "S"}, {"trainable": "T"}],
+        [{"0": "0"}, {"sum": "S"}, {"mlp": "MLP"}],
     ]
 
     print("Start running")
-    for key in ["mix"]:
-        for enum, (_train, _test1, _test2) in enumerate([
-            ("train-mix-5000-50-100",
-             "test-random-500-50-100-prop-125",
-             "test-random-500-100-200-prop-125"),
-            # ("train-mix-5000-50-100",
-            #  "test-random-100-50-100-v0.125-v1-0.025",
-            #  "test-random-100-100-200-v0.125-v1-0.025"),
-            # ("train-mix-5000-50-100",
-            #  "test-random-100-50-100-v0.125-v1-0.01",
-            #  "test-random-100-100-200-v0.125-v1-0.01"),
-            # ("train-random-5000-50-100-v0.125-v1-0.025",
-            #  "test-random-100-50-100-v0.125-v1-0.1",
-            #  "test-random-100-100-200-v0.125-v1-0.1"),
-            # ("train-random-5000-50-100-v0.125-v1-0.025",
-            #  "test-random-100-50-100-v0.125-v1-0.01",
-            #  "test-random-100-100-200-v0.125-v1-0.01"),
+    for _key in ["random"]:
+        for _enum, _set in enumerate([
+            [("train-random-5000-50-100-v0.125-v1-0.3",
+              "test-random-100-50-100-v0.125-v1-0.3",
+              "test-random-100-100-200-v0.125-v1-0.3"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.3",
+            #   "test-random-100-50-100-v0.125-v1-0.1",
+            #   "test-random-100-100-200-v0.125-v1-0.1"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.3",
+            #   "test-random-100-50-100-v0.125-v1-0.025",
+            #   "test-random-100-100-200-v0.125-v1-0.025"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.3",
+            #   "test-random-100-50-100-v0.125-v1-0.01",
+            #   "test-random-100-100-200-v0.125-v1-0.01"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.3",
+            #   "test-line-special-100-50-100",
+            #   "test-line-special-100-100-200"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.3",
+            #   "test-random-500-50-100-prop-125",
+            #   "test-random-500-100-200-prop-125")
+             ],
 
-            # ("train-random-5000-50-100-v0.125-v1-0.3",
-            #  "test-random-100-50-100-v0.125-v1-0.1",
-            #  "test-random-100-100-200-v0.125-v1-0.1"),
-            # ("train-random-5000-50-100-v0.125-v1-0.1",
-            #  "test-random-100-50-100-v0.125-v1-0.1",
-            #  "test-random-100-100-200-v0.125-v1-0.1"),
-            # ("train-random-5000-50-100-v0.125-v1-0.01",
-            #  "test-random-100-50-100-v0.125-v1-0.1",
-            #  "test-random-100-100-200-v0.125-v1-0.1"),
+            [("train-random-5000-50-100-v0.125-v1-0.1",
+              "test-random-100-50-100-v0.125-v1-0.3",
+              "test-random-100-100-200-v0.125-v1-0.3"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.1",
+            #   "test-random-100-50-100-v0.125-v1-0.1",
+            #   "test-random-100-100-200-v0.125-v1-0.1"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.1",
+            #   "test-random-100-50-100-v0.125-v1-0.025",
+            #   "test-random-100-100-200-v0.125-v1-0.025"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.1",
+            #   "test-random-100-50-100-v0.125-v1-0.01",
+            #   "test-random-100-100-200-v0.125-v1-0.01"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.1",
+            #   "test-line-special-100-50-100",
+            #   "test-line-special-100-100-200"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.1",
+            #   "test-random-500-50-100-prop-125",
+            #   "test-random-500-100-200-prop-125")
+             ],
 
-            # ("train-random-5000-50-100-v0.125-v1-0.3",
-            #  "test-random-100-50-100-v0.125-v1-0.01",
-            #  "test-random-100-100-200-v0.125-v1-0.01"),
-            # ("train-random-5000-50-100-v0.125-v1-0.1",
-            #  "test-random-100-50-100-v0.125-v1-0.01",
-            #  "test-random-100-100-200-v0.125-v1-0.01"),
-            # ("train-random-5000-50-100-v0.125-v1-0.01",
-            #  "test-random-100-50-100-v0.125-v1-0.01",
-            #  "test-random-100-100-200-v0.125-v1-0.01"),
+            [("train-random-5000-50-100-v0.125-v1-0.01",
+              "test-random-100-50-100-v0.125-v1-0.3",
+              "test-random-100-100-200-v0.125-v1-0.3"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.01",
+            #   "test-random-100-50-100-v0.125-v1-0.1",
+            #   "test-random-100-100-200-v0.125-v1-0.1"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.01",
+            #   "test-random-100-50-100-v0.125-v1-0.025",
+            #   "test-random-100-100-200-v0.125-v1-0.025"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.01",
+            #   "test-random-100-50-100-v0.125-v1-0.01",
+            #   "test-random-100-100-200-v0.125-v1-0.01"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.01",
+            #   "test-line-special-100-50-100",
+            #   "test-line-special-100-100-200"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.01",
+            #   "test-random-500-50-100-prop-125",
+            #   "test-random-500-100-200-prop-125")
+             ],
+
+            [("train-random-5000-50-100-v0.125-v1-0.025",
+              "test-random-100-50-100-v0.125-v1-0.3",
+              "test-random-100-100-200-v0.125-v1-0.3"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.025",
+            #   "test-random-100-50-100-v0.125-v1-0.1",
+            #   "test-random-100-100-200-v0.125-v1-0.1"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.025",
+            #   "test-random-100-50-100-v0.125-v1-0.025",
+            #   "test-random-100-100-200-v0.125-v1-0.025"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.025",
+            #   "test-random-100-50-100-v0.125-v1-0.01",
+            #   "test-random-100-100-200-v0.125-v1-0.01"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.025",
+            #   "test-line-special-100-50-100",
+            #   "test-line-special-100-100-200"),
+            #  ("train-random-5000-50-100-v0.125-v1-0.025",
+            #   "test-random-500-50-100-prop-125",
+            #   "test-random-500-100-200-prop-125")
+             ],
+
+            [("train-line-special-5000-50-100",
+              "test-random-100-50-100-v0.125-v1-0.3",
+              "test-random-100-100-200-v0.125-v1-0.3"),
+            #  ("train-line-special-5000-50-100",
+            #   "test-random-100-50-100-v0.125-v1-0.1",
+            #   "test-random-100-100-200-v0.125-v1-0.1"),
+            #  ("train-line-special-5000-50-100",
+            #   "test-random-100-50-100-v0.125-v1-0.025",
+            #   "test-random-100-100-200-v0.125-v1-0.025"),
+            #  ("train-line-special-5000-50-100",
+            #   "test-random-100-50-100-v0.125-v1-0.01",
+            #   "test-random-100-100-200-v0.125-v1-0.01"),
+            #  ("train-line-special-5000-50-100",
+            #   "test-line-special-100-50-100",
+            #   "test-line-special-100-100-200"),
+            #  ("train-line-special-5000-50-100",
+            #   "test-random-500-50-100-prop-125",
+            #   "test-random-500-100-200-prop-125")
+             ],
+
+            [("train-mix-20000-50-100",
+              "test-random-100-50-100-v0.125-v1-0.3",
+              "test-random-100-100-200-v0.125-v1-0.3"),
+            #  ("train-mix-20000-50-100",
+            #   "test-random-100-50-100-v0.125-v1-0.1",
+            #   "test-random-100-100-200-v0.125-v1-0.1"),
+            #  ("train-mix-20000-50-100",
+            #   "test-random-100-50-100-v0.125-v1-0.025",
+            #   "test-random-100-100-200-v0.125-v1-0.025"),
+            #  ("train-mix-20000-50-100",
+            #   "test-random-100-50-100-v0.125-v1-0.01",
+            #   "test-random-100-100-200-v0.125-v1-0.01"),
+            #  ("train-mix-20000-50-100",
+            #   "test-line-special-100-50-100",
+            #   "test-line-special-100-100-200"),
+            #  ("train-mix-20000-50-100",
+            #   "test-random-500-50-100-prop-125",
+            #   "test-random-500-100-200-prop-125")
+             ],
         ]):
 
-            print(f"Start for dataset {_train}-{_test1}-{_test2}")
+            key = _key
+            enum = _enum
 
-            _train_graphs, (_, _, _n_node_labels) = load_data(
-                dataset=f"data/{_train}.txt",
-                degree_as_node_label=False)
+            if "mix" in _set[0][0]:
+                key = "mix"
+                enum = 0
 
-            _test_graphs, _ = load_data(
-                dataset=f"data/{_test1}.txt",
-                degree_as_node_label=False)
+            if "line" in _set[0][0]:
+                key = "line-special"
+                enum = 0
 
-            _test_graphs2, _ = load_data(
-                dataset=f"data/{_test2}.txt",
-                degree_as_node_label=False)
-            # _train_graphs, (_, _, _n_node_labels) = load_data(
-            #     dataset=f"test.txt",
-            #     degree_as_node_label=False)
+            for index, (_train, _test1, _test2) in enumerate(_set):
 
-            for _net_class in ["ac", "gin", "acr"]:
-                filename = f"logging/{key}-{enum}-{_net_class}.mix"
-                for a, r, c in _networks:
-                    (_agg, _agg_abr) = list(a.items())[0]
-                    (_read, _read_abr) = list(r.items())[0]
-                    (_comb, _comb_abr) = list(c.items())[0]
+                print(f"Start for dataset {_train}-{_test1}-{_test2}")
 
-                    if (_net_class == "ac" or _net_class == "gin") and (
-                            _read == "max" or _read == "sum"):
-                        continue
-                    elif _net_class == "gin" and _comb == "mlp":
-                        continue
+                _train_graphs, (_, _, _n_node_labels) = load_data(
+                    dataset=f"data/{_train}.txt",
+                    degree_as_node_label=False)
 
-                    for l in [2, 5]:
+                _test_graphs, _ = load_data(
+                    dataset=f"data/{_test1}.txt",
+                    degree_as_node_label=False)
 
-                        print(a, r, c, _net_class, l)
-                        logging.info(f"{key}-{_net_class}-{_read_abr}")
-                        logging.info(f"{a}, {r}, {c}, {_net_class}")
+                _test_graphs2, _ = load_data(
+                    dataset=f"data/{_test2}.txt",
+                    degree_as_node_label=False)
+                # _train_graphs, (_, _, _n_node_labels) = load_data(
+                #     dataset=f"test.txt",
+                #     degree_as_node_label=False)
 
-                        _args = argument_parser().parse_args(
-                            [
-                                f"--readout={_read}",
-                                f"--aggregate={_agg}",
-                                f"--combine={_comb}",
-                                f"--network={_net_class}gnn",
-                                f"--mlp_combine_agg=sum",
-                                f"--filename=logging/{key}-{enum}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
-                                "--epochs=10",
-                                "--iters_per_epoch=50",
-                                # "--no_test",
-                                f"--batch_size=32",
-                                "--test_every=1",
-                                f"--hidden_dim=64",
-                                f"--num_layers={l}"
-                            ])
+                for _net_class in ["ac", "gin", "acr"]:
+                    filename = f"logging/{key}-{enum}-{index}-{_net_class}.mix"
+                    for a, r, c in _networks:
+                        (_agg, _agg_abr) = list(a.items())[0]
+                        (_read, _read_abr) = list(r.items())[0]
+                        (_comb, _comb_abr) = list(c.items())[0]
 
-                        line = main(
-                            _args,
-                            data_train=_train_graphs,
-                            data_test=_test_graphs,
-                            n_classes=_n_node_labels,
-                            another_test=_test_graphs2,
-                            # save_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
-                            train_model=False,
-                            load_model=f"saved_models/MODEL-{_net_class}-{key}-0-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth"
-                        )
+                        if (_net_class == "ac" or _net_class == "gin") and (
+                                _read == "max" or _read == "sum"):
+                            continue
+                        elif _net_class == "gin" and _comb == "mlp":
+                            continue
+                        elif (_net_class == "ac" or _net_class == "gin") and _agg == "0":
+                            continue
 
-                        # append results per layer
+                        for l in [2, 5]:
+
+                            print(a, r, c, _net_class, l)
+                            logging.info(f"{key}-{_net_class}-{_read_abr}")
+                            logging.info(f"{a}, {r}, {c}, {_net_class}")
+
+                            _args = argument_parser().parse_args(
+                                [
+                                    f"--readout={_read}",
+                                    f"--aggregate={_agg}",
+                                    f"--combine={_comb}",
+                                    f"--network={_net_class}gnn",
+                                    f"--mlp_combine_agg=sum",
+                                    f"--filename=logging/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
+                                    "--epochs=10",
+                                    "--iters_per_epoch=50",
+                                    # "--no_test",
+                                    f"--batch_size=32",
+                                    "--test_every=1",
+                                    f"--hidden_dim=16",
+                                    f"--num_layers={l}"
+                                ])
+
+                            line = main(
+                                _args,
+                                data_train=_train_graphs,
+                                data_test=_test_graphs,
+                                n_classes=_n_node_labels,
+                                another_test=_test_graphs2,
+                                save_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
+                                train_model=True,
+                                # load_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth"
+                            )
+
+                            # append results per layer
+                            with open(filename, 'a') as f:
+                                f.write(line)
+
+                        # next combination
                         with open(filename, 'a') as f:
-                            f.write(line)
-
-                    # next combination
-                    with open(filename, 'a') as f:
-                        f.write("\n")
+                            f.write("\n")

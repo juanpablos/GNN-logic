@@ -120,7 +120,8 @@ class GNN(nn.Module):
         options = {
             "sum": partial(self.__node_sumavgpool, average=False),
             "average": partial(self.__node_sumavgpool, average=True),
-            "max": self.__node_maxpool}
+            "max": self.__node_maxpool,
+            "0": self.__null_aggregate}
         if aggregate_type not in options:
             raise ValueError()
         return options[aggregate_type]
@@ -154,6 +155,10 @@ class GNN(nn.Module):
         else:
             pooled_rep, _ = torch.max(h_with_dummy[aux_data], dim=1)
         return pooled_rep
+
+    def __null_aggregate(self, h, **kwargs):
+        # do nothing, return 0
+        return torch.zeros_like(h).to(self.device)
 
     def __graph_maxpool(self, h, indices):
         # h must be a matrix with all node representations.

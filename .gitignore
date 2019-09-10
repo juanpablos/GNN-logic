@@ -3,7 +3,7 @@ dataset/
 .idea/
 results/
 plots/
-temp/
+logging/
 data/
 saved_models/
 
