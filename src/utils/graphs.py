@@ -621,6 +621,7 @@ def train_dataset(
         random_degrees,
         edges,
         no_green=False,
+        force_green=None,
         **kwargs):
     random.seed(seed)
     np.random.seed(seed)
@@ -647,6 +648,10 @@ def train_dataset(
     #red_prob = 0.9
     if not no_green:
         green_prob = (1. - red_prob) / (n_colors - 1)
+
+    if force_green is not None:
+        green_prob = (force_green-1) / float(n_max)
+
     others = (1. - red_prob - green_prob) / (n_colors - 2)
     node_distribution_2 = [green_prob,
                            red_prob] + [others] * (n_colors - 2)
@@ -674,7 +679,8 @@ def train_dataset(
     label_generator = tagger(input_file=f"temp{i}.txt", formula=tagger_fn)
     write_graphs(
         label_generator,
-        filename=f"../data/train-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}-{edges}.txt",
+        # filename=f"../data/train-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}-{edges}.txt",
+        filename=f"../data/exp/train-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}-{green_prob}.txt",
         write_features=["color"])
 
 
@@ -688,6 +694,7 @@ def test_dataset(
         random_degrees,
         edges,
         no_green=False,
+        force_green=None,
         **kwargs):
     random.seed(seed)
     np.random.seed(seed)
@@ -714,6 +721,10 @@ def test_dataset(
     #red_prob = 0.7
     if not no_green:
         green_prob = (1. - red_prob) / (n_colors - 1)
+
+    if force_green is not None:
+        green_prob = (force_green-1) / float(n_max)
+
     others = (1. - red_prob - green_prob) / (n_colors - 2)
     node_distribution_2 = [green_prob,
                            red_prob] + [others] * (n_colors - 2)
@@ -741,11 +752,13 @@ def test_dataset(
     label_generator = tagger(input_file=f"temp{i}.txt", formula=tagger_fn)
     write_graphs(
         label_generator,
-        filename=f"../data/test-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}-{edges}.txt",
+        # filename=f"../data/test-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}-{edges}.txt",
+        filename=f"../data/exp/test-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}-{green_prob}.txt",
         write_features=["color"])
 
 
 if __name__ == "__main__":
+    # TODO: implement manual limit to number of nodes with each color
 
     # if int -> indices
     #_split_line = {"split": [10]}
@@ -753,21 +766,22 @@ if __name__ == "__main__":
 
     # only_extreme=True|False
 
-    # train_dataset(
-    #     name="random",
-    #     seed=None,
-    #     n_colors=5,
-    #     number_of_graphs=5000,
-    #     n_min=50,
-    #     n_max=100,
-    #     random_degrees=True,
-    #     min_degree=0,
-    #     max_degree=2,
-    #     no_green=False,
-    #     special_line=True,
-    #     edges=0.025,
-    #     split_line=_split_line,
-    #     force_proportion=1.5)
+    train_dataset(
+        name="random",
+        seed=None,
+        n_colors=5,
+        number_of_graphs=5000,
+        n_min=50,
+        n_max=100,
+        random_degrees=True,
+        min_degree=0,
+        max_degree=2,
+        no_green=False,
+        special_line=True,
+        edges=0.025,
+        split_line=_split_line,
+        force_proportion=2,
+        force_green=3)
 
     test_dataset(
         name="random",
@@ -783,7 +797,8 @@ if __name__ == "__main__":
         special_line=True,
         edges=0.025,
         split_line=_split_line,
-        force_proportion=1.25)
+        force_proportion=2,
+        force_green=3)
 
     test_dataset(
         name="random",
@@ -799,4 +814,5 @@ if __name__ == "__main__":
         special_line=True,
         edges=0.025,
         split_line=_split_line,
-        force_proportion=1.25)
+        force_proportion=2,
+        force_green=3)

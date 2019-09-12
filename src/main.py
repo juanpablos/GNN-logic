@@ -143,7 +143,8 @@ def test(
         # micro average -> mean between all nodes
         train_micro_avg = np.mean(results)
 
-        # split node equality by graph, we dont need the last value of `indices`
+        # split node equality by graph, we dont need the last value of
+        # `indices`
         macro_split = np.split(results, indices[:-1])
         # macro average -> mean between the mean of nodes for each graph
         train_macro_avg = np.mean([np.mean(graph) for graph in macro_split])
@@ -186,8 +187,10 @@ def test(
                 # split node equality by graph, we dont need the last value of
                 # `indices`
                 macro_split = np.split(results, indices[:-1])
-                # macro average -> mean between the mean of nodes for each graph
-                test_macro_avg = np.mean([np.mean(graph) for graph in macro_split])
+                # macro average -> mean between the mean of nodes for each
+                # graph
+                test_macro_avg = np.mean([np.mean(graph)
+                                          for graph in macro_split])
 
                 if another_test is not None:
                     output, n_nodes, indices, labels = pass_data_iteratively(
@@ -202,7 +205,8 @@ def test(
                     _labels = torch.zeros_like(output).scatter_(
                         1, _labels, 1.).to(device)
 
-                    test2_loss = criterion(output, _labels).detach().cpu().numpy()
+                    test2_loss = criterion(
+                        output, _labels).detach().cpu().numpy()
 
                     # equals both vectors, prediction == label
                     results = np.equal(predicted_labels.cpu(), labels).numpy()
@@ -382,156 +386,181 @@ if __name__ == '__main__':
     # agg, read, comb
     _networks = [
         [{"average": "A"}, {"average": "A"}, {"trainable": "T"}],
-        [{"average": "A"}, {"average": "A"}, {"mlp": "MLP"}],
+        # [{"average": "A"}, {"average": "A"}, {"mlp": "MLP"}],
         [{"average": "A"}, {"max": "M"}, {"trainable": "T"}],
-        [{"average": "A"}, {"max": "M"}, {"mlp": "MLP"}],
-        [{"average": "A"}, {"sum": "S"}, {"trainable": "T"}],
-        [{"average": "A"}, {"sum": "S"}, {"mlp": "MLP"}],
+        # # [{"average": "A"}, {"max": "M"}, {"mlp": "MLP"}],
+        # [{"average": "A"}, {"sum": "S"}, {"trainable": "T"}],
+        # # # [{"average": "A"}, {"sum": "S"}, {"mlp": "MLP"}],
 
         [{"max": "M"}, {"average": "A"}, {"trainable": "T"}],
-        [{"max": "M"}, {"average": "A"}, {"mlp": "MLP"}],
+        # # [{"max": "M"}, {"average": "A"}, {"mlp": "MLP"}],
         [{"max": "M"}, {"max": "M"}, {"trainable": "T"}],
-        [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
-        [{"max": "M"}, {"sum": "S"}, {"trainable": "T"}],
-        [{"max": "M"}, {"sum": "S"}, {"mlp": "MLP"}],
+        # [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
+        # [{"max": "M"}, {"sum": "S"}, {"trainable": "T"}],
+        # # [{"max": "M"}, {"sum": "S"}, {"mlp": "MLP"}],
 
         [{"sum": "S"}, {"average": "A"}, {"trainable": "T"}],
-        [{"sum": "S"}, {"average": "A"}, {"mlp": "MLP"}],
+        # # [{"sum": "S"}, {"average": "A"}, {"mlp": "MLP"}],
         [{"sum": "S"}, {"max": "M"}, {"trainable": "T"}],
-        [{"sum": "S"}, {"max": "M"}, {"mlp": "MLP"}],
-        [{"sum": "S"}, {"sum": "S"}, {"trainable": "T"}],
-        [{"sum": "S"}, {"sum": "S"}, {"mlp": "MLP"}],
+        # [{"sum": "S"}, {"max": "M"}, {"mlp": "MLP"}],
+        # [{"sum": "S"}, {"sum": "S"}, {"trainable": "T"}],
+        # # [{"sum": "S"}, {"sum": "S"}, {"mlp": "MLP"}],
 
-        [{"0": "0"}, {"average": "A"}, {"trainable": "T"}],
-        [{"0": "0"}, {"average": "A"}, {"mlp": "MLP"}],
-        [{"0": "0"}, {"max": "M"}, {"trainable": "T"}],
-        [{"0": "0"}, {"max": "M"}, {"mlp": "MLP"}],
-        [{"0": "0"}, {"sum": "S"}, {"trainable": "T"}],
-        [{"0": "0"}, {"sum": "S"}, {"mlp": "MLP"}],
+        # [{"0": "0"}, {"average": "A"}, {"trainable": "T"}],
+        # # [{"0": "0"}, {"average": "A"}, {"mlp": "MLP"}],
+        # [{"0": "0"}, {"max": "M"}, {"trainable": "T"}],
+        # # [{"0": "0"}, {"max": "M"}, {"mlp": "MLP"}],
+        # [{"0": "0"}, {"sum": "S"}, {"trainable": "T"}],
+        # # [{"0": "0"}, {"sum": "S"}, {"mlp": "MLP"}],
     ]
 
     print("Start running")
-    for _key in ["random"]:
+    for _key in ["experiment"]:
         for _enum, _set in enumerate([
-            [("train-random-5000-50-100-v0.125-v1-0.3",
-              "test-random-100-50-100-v0.125-v1-0.3",
-              "test-random-100-100-200-v0.125-v1-0.3"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.3",
-            #   "test-random-100-50-100-v0.125-v1-0.1",
-            #   "test-random-100-100-200-v0.125-v1-0.1"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.3",
-            #   "test-random-100-50-100-v0.125-v1-0.025",
-            #   "test-random-100-100-200-v0.125-v1-0.025"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.3",
-            #   "test-random-100-50-100-v0.125-v1-0.01",
-            #   "test-random-100-100-200-v0.125-v1-0.01"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.3",
-            #   "test-line-special-100-50-100",
-            #   "test-line-special-100-100-200"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.3",
-            #   "test-random-500-50-100-prop-125",
-            #   "test-random-500-100-200-prop-125")
+
+            [("exp/train-random-5000-50-100-1-0.02",
+              "exp/test-random-500-50-100-1-0.02",
+              "exp/test-random-500-100-200-1-0.01"),
+             ],
+            [("exp/train-random-5000-50-100-1.2-0.02",
+              "exp/test-random-500-50-100-1.2-0.02",
+              "exp/test-random-500-100-200-1.2-0.01"),
+             ],
+            [("exp/train-random-5000-50-100-1.5-0.02",
+              "exp/test-random-500-50-100-1.5-0.02",
+              "exp/test-random-500-100-200-1.5-0.01"),
+             ],
+            [("exp/train-random-5000-50-100-2-0.02",
+              "exp/test-random-500-50-100-2-0.02",
+              "exp/test-random-500-100-200-2-0.01"),
+             ],
+            [("exp/train-random-20000-50-100-mix-0.02",
+              "exp/test-random-2000-50-100-mix-0.02",
+              "exp/test-random-2000-100-200-mix-0.02"),
              ],
 
-            [("train-random-5000-50-100-v0.125-v1-0.1",
-              "test-random-100-50-100-v0.125-v1-0.3",
-              "test-random-100-100-200-v0.125-v1-0.3"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.1",
-            #   "test-random-100-50-100-v0.125-v1-0.1",
-            #   "test-random-100-100-200-v0.125-v1-0.1"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.1",
-            #   "test-random-100-50-100-v0.125-v1-0.025",
-            #   "test-random-100-100-200-v0.125-v1-0.025"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.1",
-            #   "test-random-100-50-100-v0.125-v1-0.01",
-            #   "test-random-100-100-200-v0.125-v1-0.01"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.1",
-            #   "test-line-special-100-50-100",
-            #   "test-line-special-100-100-200"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.1",
-            #   "test-random-500-50-100-prop-125",
-            #   "test-random-500-100-200-prop-125")
-             ],
 
-            [("train-random-5000-50-100-v0.125-v1-0.01",
-              "test-random-100-50-100-v0.125-v1-0.3",
-              "test-random-100-100-200-v0.125-v1-0.3"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.01",
-            #   "test-random-100-50-100-v0.125-v1-0.1",
-            #   "test-random-100-100-200-v0.125-v1-0.1"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.01",
-            #   "test-random-100-50-100-v0.125-v1-0.025",
-            #   "test-random-100-100-200-v0.125-v1-0.025"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.01",
-            #   "test-random-100-50-100-v0.125-v1-0.01",
-            #   "test-random-100-100-200-v0.125-v1-0.01"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.01",
-            #   "test-line-special-100-50-100",
-            #   "test-line-special-100-100-200"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.01",
-            #   "test-random-500-50-100-prop-125",
-            #   "test-random-500-100-200-prop-125")
-             ],
 
-            [("train-random-5000-50-100-v0.125-v1-0.025",
-              "test-random-100-50-100-v0.125-v1-0.3",
-              "test-random-100-100-200-v0.125-v1-0.3"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.025",
-            #   "test-random-100-50-100-v0.125-v1-0.1",
-            #   "test-random-100-100-200-v0.125-v1-0.1"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.025",
-            #   "test-random-100-50-100-v0.125-v1-0.025",
-            #   "test-random-100-100-200-v0.125-v1-0.025"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.025",
-            #   "test-random-100-50-100-v0.125-v1-0.01",
-            #   "test-random-100-100-200-v0.125-v1-0.01"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.025",
-            #   "test-line-special-100-50-100",
-            #   "test-line-special-100-100-200"),
-            #  ("train-random-5000-50-100-v0.125-v1-0.025",
-            #   "test-random-500-50-100-prop-125",
-            #   "test-random-500-100-200-prop-125")
-             ],
+            # [("train-line-special-5000-50-100",
+            #   "test-random-500-50-100-prop11.5",
+            #   "test-random-500-100-200-prop11.5"),
+            #  #   ("train-line-special-5000-50-100",
+            #  #    "test-random-500-50-100-prop3.5",
+            #  #    "test-random-500-100-200-prop3.5"),
+            #  #   ("train-line-special-5000-50-100",
+            #  #    "test-random-500-50-100-prop1.25",
+            #  #    "test-random-500-100-200-prop1.25"),
+            #  #   ("train-line-special-5000-50-100",
+            #  #    "test-random-500-50-100-prop1",
+            #  #    "test-random-500-100-200-prop1"),
+            #  #   ("train-line-special-5000-50-100",
+            #  #    "test-random-500-50-100-prop0.35",
+            #  #    "test-random-500-100-200-prop0.35"),
+            #  #   ("train-line-special-5000-50-100",
+            #  #    "test-line-special-500-50-100",
+            #  #    "test-line-special-500-100-200")
+            #  ],
 
-            [("train-line-special-5000-50-100",
-              "test-random-100-50-100-v0.125-v1-0.3",
-              "test-random-100-100-200-v0.125-v1-0.3"),
-            #  ("train-line-special-5000-50-100",
-            #   "test-random-100-50-100-v0.125-v1-0.1",
-            #   "test-random-100-100-200-v0.125-v1-0.1"),
-            #  ("train-line-special-5000-50-100",
-            #   "test-random-100-50-100-v0.125-v1-0.025",
-            #   "test-random-100-100-200-v0.125-v1-0.025"),
-            #  ("train-line-special-5000-50-100",
-            #   "test-random-100-50-100-v0.125-v1-0.01",
-            #   "test-random-100-100-200-v0.125-v1-0.01"),
-            #  ("train-line-special-5000-50-100",
-            #   "test-line-special-100-50-100",
-            #   "test-line-special-100-100-200"),
-            #  ("train-line-special-5000-50-100",
-            #   "test-random-500-50-100-prop-125",
-            #   "test-random-500-100-200-prop-125")
-             ],
 
-            [("train-mix-20000-50-100",
-              "test-random-100-50-100-v0.125-v1-0.3",
-              "test-random-100-100-200-v0.125-v1-0.3"),
-            #  ("train-mix-20000-50-100",
-            #   "test-random-100-50-100-v0.125-v1-0.1",
-            #   "test-random-100-100-200-v0.125-v1-0.1"),
-            #  ("train-mix-20000-50-100",
-            #   "test-random-100-50-100-v0.125-v1-0.025",
-            #   "test-random-100-100-200-v0.125-v1-0.025"),
-            #  ("train-mix-20000-50-100",
-            #   "test-random-100-50-100-v0.125-v1-0.01",
-            #   "test-random-100-100-200-v0.125-v1-0.01"),
-            #  ("train-mix-20000-50-100",
-            #   "test-line-special-100-50-100",
-            #   "test-line-special-100-100-200"),
-            #  ("train-mix-20000-50-100",
-            #   "test-random-500-50-100-prop-125",
-            #   "test-random-500-100-200-prop-125")
-             ],
+            # [("train-random-5000-50-100-v0.125-v1-0.3",
+            #   "test-random-500-50-100-prop11.5",
+            #   "test-random-500-100-200-prop11.5"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.3",
+            #  #    "test-random-500-50-100-prop3.5",
+            #  #    "test-random-500-100-200-prop3.5"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.3",
+            #  #    "test-random-500-50-100-prop1.25",
+            #  #    "test-random-500-100-200-prop1.25"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.3",
+            #  #    "test-random-500-50-100-prop1",
+            #  #    "test-random-500-100-200-prop1"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.3",
+            #  #    "test-random-500-50-100-prop0.35",
+            #  #    "test-random-500-100-200-prop0.35"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.3",
+            #  #    "test-line-special-500-50-100",
+            #  #    "test-line-special-500-100-200")
+            #  ],
+
+            # [("train-random-5000-50-100-v0.125-v1-0.1",
+            #   "test-random-500-50-100-prop11.5",
+            #   "test-random-500-100-200-prop11.5"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.1",
+            #  #    "test-random-500-50-100-prop3.5",
+            #  #    "test-random-500-100-200-prop3.5"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.1",
+            #  #    "test-random-500-50-100-prop1.25",
+            #  #    "test-random-500-100-200-prop1.25"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.1",
+            #  #    "test-random-500-50-100-prop1",
+            #  #    "test-random-500-100-200-prop1"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.1",
+            #  #    "test-random-500-50-100-prop0.35",
+            #  #    "test-random-500-100-200-prop0.35"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.1",
+            #  #    "test-line-special-500-50-100",
+            #  #    "test-line-special-500-100-200")
+            #  ],
+
+            # [("train-random-5000-50-100-v0.125-v1-0.01",
+            #   "test-random-500-50-100-prop11.5",
+            #   "test-random-500-100-200-prop11.5"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.01",
+            #  #    "test-random-500-50-100-prop3.5",
+            #  #    "test-random-500-100-200-prop3.5"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.01",
+            #  #    "test-random-500-50-100-prop1.25",
+            #  #    "test-random-500-100-200-prop1.25"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.01",
+            #  #    "test-random-500-50-100-prop1",
+            #  #    "test-random-500-100-200-prop1"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.01",
+            #  #    "test-random-500-50-100-prop0.35",
+            #  #    "test-random-500-100-200-prop0.35"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.01",
+            #  #    "test-line-special-500-50-100",
+            #  #    "test-line-special-500-100-200")
+            #  ],
+
+            # [("train-random-5000-50-100-v0.125-v1-0.025",
+            #   "test-random-500-50-100-prop11.5",
+            #   "test-random-500-100-200-prop11.5"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.025",
+            #  #    "test-random-500-50-100-prop3.5",
+            #  #    "test-random-500-100-200-prop3.5"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.025",
+            #  #    "test-random-500-50-100-prop1.25",
+            #  #    "test-random-500-100-200-prop1.25"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.025",
+            #  #    "test-random-500-50-100-prop1",
+            #  #    "test-random-500-100-200-prop1"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.025",
+            #  #    "test-random-500-50-100-prop0.35",
+            #  #    "test-random-500-100-200-prop0.35"),
+            #  #   ("train-random-5000-50-100-v0.125-v1-0.025",
+            #  #    "test-line-special-500-50-100",
+            #  #    "test-line-special-500-100-200")
+            #  ],
+
+            # [("train-mix-20000-50-100",
+            #   "test-random-500-50-100-prop11.5",
+            #   "test-random-500-100-200-prop11.5"),
+            #  #   ("train-mix-20000-50-100",
+            #  #    "test-random-500-50-100-prop3.5",
+            #  #    "test-random-500-100-200-prop3.5"),
+            #  #   ("train-mix-20000-50-100",
+            #  #    "test-random-500-50-100-prop1.25",
+            #  #    "test-random-500-100-200-prop1.25"),
+            #  #   ("train-mix-20000-50-100",
+            #  #    "test-random-500-50-100-prop1",
+            #  #    "test-random-500-100-200-prop1"),
+            #  #   ("train-mix-20000-50-100",
+            #  #    "test-random-500-50-100-prop0.35",
+            #  #    "test-random-500-100-200-prop0.35"),
+            #  #   ("train-mix-20000-50-100",
+            #  #    "test-line-special-500-50-100",
+            #  #    "test-line-special-500-100-200")
+            #  ],
         ]):
 
             key = _key
@@ -564,8 +593,12 @@ if __name__ == '__main__':
                 #     dataset=f"test.txt",
                 #     degree_as_node_label=False)
 
-                for _net_class in ["ac", "gin", "acr"]:
-                    filename = f"logging/{key}-{enum}-{index}-{_net_class}.mix"
+                for _net_class in [
+                    "ac",
+                    "gin",
+                    "acr"
+                ]:
+                    filename = f"logging/{key}-{enum}-{index}.mix"
                     for a, r, c in _networks:
                         (_agg, _agg_abr) = list(a.items())[0]
                         (_read, _read_abr) = list(r.items())[0]
@@ -608,9 +641,9 @@ if __name__ == '__main__':
                                 data_test=_test_graphs,
                                 n_classes=_n_node_labels,
                                 another_test=_test_graphs2,
-                                save_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
+                                # save_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
                                 train_model=True,
-                                # load_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth"
+                                # load_model=f"saved_models/h32/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth"
                             )
 
                             # append results per layer
