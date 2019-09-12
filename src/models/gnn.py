@@ -1,10 +1,8 @@
 
 from functools import partial
 
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.init as init
 
 from .mlp import MLP
 
@@ -327,16 +325,6 @@ class GNN(nn.Module):
 
     def compute_layer(self, h, layer, aux_data):
         raise NotImplementedError()
-
-    class delete:
-        def __init__(self):
-            self.n = 0
-
-        def __call__(self):
-            self.n += 1
-            return self.n
-
-    d = delete()
 
     def forward(self, batch_graph):
         # Stack node features -> result is a matrix of size (nodes, features)

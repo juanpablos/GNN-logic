@@ -2,7 +2,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from numpy.core.numeric import dtype
 
 from .mlp import MLP
 

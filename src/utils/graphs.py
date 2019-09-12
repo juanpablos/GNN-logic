@@ -650,7 +650,7 @@ def train_dataset(
         green_prob = (1. - red_prob) / (n_colors - 1)
 
     if force_green is not None:
-        green_prob = (force_green-1) / float(n_max)
+        green_prob = (force_green - 1) / float(n_max)
 
     others = (1. - red_prob - green_prob) / (n_colors - 2)
     node_distribution_2 = [green_prob,
@@ -723,7 +723,7 @@ def test_dataset(
         green_prob = (1. - red_prob) / (n_colors - 1)
 
     if force_green is not None:
-        green_prob = (force_green-1) / float(n_max)
+        green_prob = (force_green - 1) / float(n_max)
 
     others = (1. - red_prob - green_prob) / (n_colors - 2)
     node_distribution_2 = [green_prob,
