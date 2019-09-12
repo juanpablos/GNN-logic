@@ -36,8 +36,8 @@ class S2VGraph(object):
 
         # ? self.aux_node_label_mapping: Dict[int, int] = None
 
-# TODO: label indices are set by appearance order. Should implement fixed
-# ! classes such that they actually represent their index.
+# TODO: allow general labels and features. Right now the feature number is
+# their label
 
 
 class OnlineLoader:
@@ -61,10 +61,10 @@ def load_data(dataset: str,
 
     print('Loading data...')
     graph_list: List[S2VGraph] = []
-    graph_label_dict: Dict[int, int] = {}
-    # {real_label : index}
-    node_labels: Dict[int, int] = {}
-    node_features: Dict[int, int] = {}
+    unique_graph_label: Dict[int, int] = {}
+    # # {real_label : index}
+    unique_node_labels: Dict[int, int] = {}
+    unique_node_features: Dict[int, int] = {}
 
     with open(dataset, 'r') as in_file:
         n_graphs = int(in_file.readline().strip())
@@ -72,9 +72,9 @@ def load_data(dataset: str,
             n_nodes, graph_label = map(
                 int, in_file.readline().strip().split(" "))
             # register graph label (not really important)
-            if graph_label not in graph_label_dict:
+            if graph_label not in unique_graph_label:
                 # index the graph_label
-                graph_label_dict[graph_label] = len(graph_label_dict)
+                unique_graph_label[graph_label] = len(unique_graph_label)
 
             graph = nx.Graph()
             _nodes_label: List[int] = []
@@ -103,20 +103,20 @@ def load_data(dataset: str,
                     # get all features, column 1 to n_features-1
                     features = node_row[1:n_features + 1]
                 # we need the index of each featur
-                _features = []
+                # _features = []
                 for f in features:
-                    if f not in node_features:
+                    if f not in unique_node_features:
                         # index it
-                        node_features[f] = len(node_features)
-                    _features.append(node_features[f])
+                        unique_node_features[f] = len(unique_node_features)
+                    # _features.append(node_features[f])
 
-                _nodes_features.append(_features)
+                _nodes_features.append(features)
                 # ---- /FEATURES ----
 
                 # ---- LABELS ----
                 node_label = node_row[n_features + 1]
-                if node_label not in node_labels:
-                    node_labels[node_label] = len(node_labels)
+                if node_label not in unique_node_labels:
+                    unique_node_labels[node_label] = len(unique_node_labels)
                 # append the node label, not the index. This is for
                 # compatibility after when using `degree_as_node_label`
                 _nodes_label.append(node_label)
@@ -144,7 +144,7 @@ def load_data(dataset: str,
             graph_list.append(
                 S2VGraph(
                     graph=graph,
-                    graph_label=graph_label_dict[graph_label],
+                    graph_label=graph_label,
                     node_features=_nodes_features,
                     node_labels=_nodes_label,
                     neighbors=neighbor_collection,
@@ -192,7 +192,7 @@ def load_data(dataset: str,
     # creates the node feature matrix
     for graph in graph_list:
         # matrix (n_nodes, n_features)
-        feature_classes = len(node_features)
+        feature_classes = len(unique_node_features)
         features = torch.tensor(graph.node_features)
         # * 1-hot encoding for each feature
         # ! only supports 1-hot
@@ -200,12 +200,12 @@ def load_data(dataset: str,
             features, feature_classes).squeeze()
 
     print(f"#Graphs: {len(graph_list)}")
-    print(f"#Graphs Labels: {len(graph_label_dict)}")
-    print(f"#Node Properties: {len(node_features)}")
-    print(f"#Node Labels: {len(node_labels)}")
+    print(f"#Graphs Labels: {len(unique_graph_label)}")
+    print(f"#Node Properties: {len(unique_node_features)}")
+    print(f"#Node Labels: {len(unique_node_labels)}")
 
-    return graph_list, \
-        (len(graph_label_dict), len(node_features), len(node_labels))
+    return graph_list, (len(unique_graph_label), len(
+        unique_node_features), len(unique_node_labels))
 
 
 def separate_data(graph_list: List[S2VGraph], seed: int,
