@@ -439,128 +439,6 @@ if __name__ == '__main__':
               "exp/test-random-2000-100-200-mix-0.02"),
              ],
 
-
-
-            # [("train-line-special-5000-50-100",
-            #   "test-random-500-50-100-prop11.5",
-            #   "test-random-500-100-200-prop11.5"),
-            #  #   ("train-line-special-5000-50-100",
-            #  #    "test-random-500-50-100-prop3.5",
-            #  #    "test-random-500-100-200-prop3.5"),
-            #  #   ("train-line-special-5000-50-100",
-            #  #    "test-random-500-50-100-prop1.25",
-            #  #    "test-random-500-100-200-prop1.25"),
-            #  #   ("train-line-special-5000-50-100",
-            #  #    "test-random-500-50-100-prop1",
-            #  #    "test-random-500-100-200-prop1"),
-            #  #   ("train-line-special-5000-50-100",
-            #  #    "test-random-500-50-100-prop0.35",
-            #  #    "test-random-500-100-200-prop0.35"),
-            #  #   ("train-line-special-5000-50-100",
-            #  #    "test-line-special-500-50-100",
-            #  #    "test-line-special-500-100-200")
-            #  ],
-
-
-            # [("train-random-5000-50-100-v0.125-v1-0.3",
-            #   "test-random-500-50-100-prop11.5",
-            #   "test-random-500-100-200-prop11.5"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.3",
-            #  #    "test-random-500-50-100-prop3.5",
-            #  #    "test-random-500-100-200-prop3.5"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.3",
-            #  #    "test-random-500-50-100-prop1.25",
-            #  #    "test-random-500-100-200-prop1.25"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.3",
-            #  #    "test-random-500-50-100-prop1",
-            #  #    "test-random-500-100-200-prop1"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.3",
-            #  #    "test-random-500-50-100-prop0.35",
-            #  #    "test-random-500-100-200-prop0.35"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.3",
-            #  #    "test-line-special-500-50-100",
-            #  #    "test-line-special-500-100-200")
-            #  ],
-
-            # [("train-random-5000-50-100-v0.125-v1-0.1",
-            #   "test-random-500-50-100-prop11.5",
-            #   "test-random-500-100-200-prop11.5"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.1",
-            #  #    "test-random-500-50-100-prop3.5",
-            #  #    "test-random-500-100-200-prop3.5"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.1",
-            #  #    "test-random-500-50-100-prop1.25",
-            #  #    "test-random-500-100-200-prop1.25"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.1",
-            #  #    "test-random-500-50-100-prop1",
-            #  #    "test-random-500-100-200-prop1"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.1",
-            #  #    "test-random-500-50-100-prop0.35",
-            #  #    "test-random-500-100-200-prop0.35"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.1",
-            #  #    "test-line-special-500-50-100",
-            #  #    "test-line-special-500-100-200")
-            #  ],
-
-            # [("train-random-5000-50-100-v0.125-v1-0.01",
-            #   "test-random-500-50-100-prop11.5",
-            #   "test-random-500-100-200-prop11.5"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.01",
-            #  #    "test-random-500-50-100-prop3.5",
-            #  #    "test-random-500-100-200-prop3.5"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.01",
-            #  #    "test-random-500-50-100-prop1.25",
-            #  #    "test-random-500-100-200-prop1.25"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.01",
-            #  #    "test-random-500-50-100-prop1",
-            #  #    "test-random-500-100-200-prop1"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.01",
-            #  #    "test-random-500-50-100-prop0.35",
-            #  #    "test-random-500-100-200-prop0.35"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.01",
-            #  #    "test-line-special-500-50-100",
-            #  #    "test-line-special-500-100-200")
-            #  ],
-
-            # [("train-random-5000-50-100-v0.125-v1-0.025",
-            #   "test-random-500-50-100-prop11.5",
-            #   "test-random-500-100-200-prop11.5"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.025",
-            #  #    "test-random-500-50-100-prop3.5",
-            #  #    "test-random-500-100-200-prop3.5"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.025",
-            #  #    "test-random-500-50-100-prop1.25",
-            #  #    "test-random-500-100-200-prop1.25"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.025",
-            #  #    "test-random-500-50-100-prop1",
-            #  #    "test-random-500-100-200-prop1"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.025",
-            #  #    "test-random-500-50-100-prop0.35",
-            #  #    "test-random-500-100-200-prop0.35"),
-            #  #   ("train-random-5000-50-100-v0.125-v1-0.025",
-            #  #    "test-line-special-500-50-100",
-            #  #    "test-line-special-500-100-200")
-            #  ],
-
-            # [("train-mix-20000-50-100",
-            #   "test-random-500-50-100-prop11.5",
-            #   "test-random-500-100-200-prop11.5"),
-            #  #   ("train-mix-20000-50-100",
-            #  #    "test-random-500-50-100-prop3.5",
-            #  #    "test-random-500-100-200-prop3.5"),
-            #  #   ("train-mix-20000-50-100",
-            #  #    "test-random-500-50-100-prop1.25",
-            #  #    "test-random-500-100-200-prop1.25"),
-            #  #   ("train-mix-20000-50-100",
-            #  #    "test-random-500-50-100-prop1",
-            #  #    "test-random-500-100-200-prop1"),
-            #  #   ("train-mix-20000-50-100",
-            #  #    "test-random-500-50-100-prop0.35",
-            #  #    "test-random-500-100-200-prop0.35"),
-            #  #   ("train-mix-20000-50-100",
-            #  #    "test-line-special-500-50-100",
-            #  #    "test-line-special-500-100-200")
-            #  ],
         ]):
 
             key = _key
@@ -612,7 +490,7 @@ if __name__ == '__main__':
                         elif (_net_class == "ac" or _net_class == "gin") and _agg == "0":
                             continue
 
-                        for l in [2, 5]:
+                        for l in [2, 5, 7]:
 
                             print(a, r, c, _net_class, l)
                             logging.info(f"{key}-{_net_class}-{_read_abr}")
