@@ -680,7 +680,7 @@ def train_dataset(
     write_graphs(
         label_generator,
         # filename=f"../data/train-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}-{edges}.txt",
-        filename=f"../data/exp/train-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}-{green_prob}.txt",
+        filename=f"../data/train-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}-{green_prob}.txt",
         write_features=["color"])
 
 
@@ -753,7 +753,7 @@ def test_dataset(
     write_graphs(
         label_generator,
         # filename=f"../data/test-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}-{edges}.txt",
-        filename=f"../data/exp/test-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}-{green_prob}.txt",
+        filename=f"../data/test-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}-{green_prob}.txt",
         write_features=["color"])
 
 
