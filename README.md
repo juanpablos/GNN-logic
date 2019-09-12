@@ -12,7 +12,7 @@ The graphs used in the paper are in the zip-file `graphs.zip`. Just unzip them t
 
 To generate new graphs use the utility function `train_dataset` and `test_dataset` in `src/utils/graphs.py`. The experiments shown in the paper use `force_green=3` for all erdos datasets, and change `force_proportion` for 1, 1.2, 1.5 and 2.
 
-For the line graphs change `name="random"` to `name="line-special"`. This will ignore all other settings and create a line with splitted colors.
+For the line graphs change `name="random"` to `name="line-special"`. This will ignore all other settings and create a line with split colors.
 The line special dataset will consist of 4 graph types described below:
 
 1. Class 1 (30% of dataset): there are no green in this graph type. The first half of the line is composed by uniformly choosing between betweek the other 4 colors. The second half is composed by having 80% red nodes, the other nodes are chosen uniformly for the left 20%.

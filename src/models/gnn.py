@@ -165,6 +165,7 @@ class GNN(nn.Module):
 
         pooled_hidden = []
 
+        # TODO: vectorize
         for index in range(1, len(indices)):
             start = indices[index - 1]
             end = indices[index]
@@ -204,6 +205,7 @@ class GNN(nn.Module):
         # * return dimension (nodes, hidden)
         pooled_hidden = []
 
+        # TODO: vectorize
         for index in range(1, len(indices)):
             start = indices[index - 1]
             end = indices[index]
