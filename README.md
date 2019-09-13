@@ -1,6 +1,6 @@
 # GNN-logic
 
-Code for de paper .....
+Code for the paper Logical Expressiveness of Graph Neural Networks
 
 ## Install
 
