@@ -4,6 +4,8 @@ from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 import networkx as nx
 import numpy as np
 
+from itertools import cycle
+
 
 def __generate_empty_graph(n_nodes: int, ** kwargs) -> nx.Graph:
     return nx.empty_graph(n=n_nodes)
@@ -69,6 +71,14 @@ def __generate_random_graph(
     return nx.fast_gnp_random_graph(n=n_nodes, p=p, seed=seed)
 
 
+def __generate_cycle_graph(n_nodes: int, **kwargs):
+    nodes_in_graph = n_nodes
+    if n_nodes % 2 != 0:
+        nodes_in_graph += 1
+
+    return nx.cycle_graph(n=nodes_in_graph)
+
+
 def __generate_graph(n_graphs: int,
                      generator_fn: str,
                      min_nodes: int,
@@ -78,6 +88,7 @@ def __generate_graph(n_graphs: int,
                      **kwargs) -> Generator[nx.Graph, None, None]:
 
     fn = None
+    _n_graphs = n_graphs
     if generator_fn == "empty":
         fn = __generate_empty_graph
 
@@ -90,13 +101,19 @@ def __generate_graph(n_graphs: int,
     elif generator_fn == "random":
         fn = __generate_random_graph
 
+    elif generator_fn == "cycle":
+        # TODO: generate only unique cycles?
+        fn = __generate_cycle_graph
+
     else:
         raise ValueError()
 
+    yield _n_graphs
+
     print("Start generating graphs")
 
-    for i in range(n_graphs):
-        print(f"{i}/{n_graphs} graphs generated")
+    for i in range(_n_graphs):
+        print(f"{i}/{_n_graphs} graphs generated")
 
         n_nodes = random.randint(min_nodes, max_nodes)
         yield fn(n_nodes=n_nodes, seed=random_state, use_random=variable_degree, **kwargs)
@@ -416,6 +433,32 @@ def __special_line(
     return graph
 
 
+def __cycle_graphs(
+        graph,
+        colors,
+        number,
+        n_graphs,
+        *,
+        two_color=False,
+        color_alternate=False,
+        **kwargs):
+
+    n_nodes = len(graph)
+
+    if two_color:
+        use_colors = cycle([0, 1])
+
+        if color_alternate:
+            use_colors = cycle([1, 0])
+
+    else:
+        raise NotImplementedError()
+
+    nx.set_node_attributes(graph, dict(zip(graph, use_colors)), name="color")
+    graph.graph["label"] = 0
+
+    return graph
+
 def generator(graph_distribution: List[float],
               node_distribution_1: List[float],
               node_distribution_2: List[float],
@@ -442,17 +485,16 @@ def generator(graph_distribution: List[float],
             random_state=random_state,
             variable_degree=variable_degree,
             **kwargs)
-        n_graphs = number_graphs
 
     elif file_input is not None:
         graph_generator = __graph_file_reader(
             filename=file_input, read_node_label=False)
-        n_graphs = next(graph_generator)
     else:
         raise ValueError(
             "Must indicate a graph generator function or a filename with the graph structure")
 
     print("Coloring graphs")
+    n_graphs = next(graph_generator)
     possible_colors = list(range(n_colors))
 
     # no green, green is 0
@@ -470,6 +512,15 @@ def generator(graph_distribution: List[float],
                 colors=possible_colors,
                 number=i,
                 n_graphs=n_graphs,
+                **kwargs)
+
+        elif structure_fn == "cycle":
+            graph = __cycle_graphs(
+                graph=graph,
+                colors=possible_colors,
+                number=i,
+                n_graphs=n_graphs,
+                color_alternate=bool(random.getrandbits(1))
                 **kwargs)
 
         else:
