@@ -19,10 +19,10 @@ from utils.util import load_data
 #                        split_line=None)
 
 graphs, _ = load_data(
-    dataset="data/test/test-random-500-50-100-2-0.01.txt",
+    dataset="data/train-cycle-150-50-150.txt",
     degree_as_node_label=False)
 
-n = 400
+n = 0
 graph = graphs[n].graph
 colors = graphs[n].node_features.numpy()
 print(graphs[n].graph_label)

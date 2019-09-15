@@ -8,7 +8,7 @@ from utils.util import load_data
 
 
 graphs, _ = load_data(
-    dataset="data/test-line-special-500-100-200.txt",
+    dataset="data/train-cycle-150-50-150.txt",
     degree_as_node_label=False)
 
 n_graphs = len(graphs)

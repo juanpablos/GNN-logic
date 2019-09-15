@@ -439,7 +439,7 @@ def __cycle_graphs(
         number,
         n_graphs,
         *,
-        two_color=False,
+        two_color=True,
         color_alternate=False,
         **kwargs):
 
@@ -458,6 +458,7 @@ def __cycle_graphs(
     graph.graph["label"] = 0
 
     return graph
+
 
 def generator(graph_distribution: List[float],
               node_distribution_1: List[float],
@@ -520,7 +521,7 @@ def generator(graph_distribution: List[float],
                 colors=possible_colors,
                 number=i,
                 n_graphs=n_graphs,
-                color_alternate=bool(random.getrandbits(1))
+                color_alternate=bool(random.getrandbits(1)),
                 **kwargs)
 
         else:
@@ -595,7 +596,7 @@ def tagger(input_file: str,
     print(f"{total_property}/{n_graphs} graphs were tagged 1 ({total_property/n_graphs})")
 
 
-def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
+def __red_exist_green(node_features: List[int]) -> Tuple[List[bool], int]:
     features = np.array(node_features)
     # green
     existence_condition = np.any(features == 0)
@@ -606,6 +607,29 @@ def tagger_fn(node_features: List[int]) -> Tuple[List[bool], int]:
         return individual_condition, 1
     # no existance condition -> all nodes are 0
     return np.zeros(features.shape[0]).astype(int), 0
+
+
+def __green_50_red(node_features: List[int]) -> Tuple[List[bool], int]:
+    features = np.array(node_features)
+    # green
+    existence_condition = np.sum(features == 1) >= 50
+    if existence_condition:
+        # red
+        individual_condition = (features == 0).astype(int)
+        # return if each node is a red node or not
+        return individual_condition, 1
+    # no existance condition -> all nodes are 0
+    return np.zeros(features.shape[0]).astype(int), 0
+
+
+def tagger_dispatch(tagger):
+    options = {
+        "red_exist_green": __red_exist_green,
+        "green_50_red": __green_50_red
+    }
+    if tagger not in options:
+        raise ValueError()
+    return options[tagger]
 
 
 def online_generator(
@@ -671,6 +695,7 @@ def train_dataset(
         n_max,
         random_degrees,
         edges,
+        tagger_fn,
         no_green=False,
         force_green=None,
         **kwargs):
@@ -727,11 +752,19 @@ def train_dataset(
     i = random.randint(0, 1000)
     write_graphs(graph_generator, filename=f"temp{i}.txt")
 
-    label_generator = tagger(input_file=f"temp{i}.txt", formula=tagger_fn)
+    label_generator = tagger(
+        input_file=f"temp{i}.txt",
+        formula=tagger_dispatch(tagger_fn))
+
+    if "cycle" in name:
+        filename = f"../data/train-{name}-{number_of_graphs}-{n_min}-{n_max}.txt"
+    else:
+        filename = f"../data/train-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}-{green_prob}.txt"
+
     write_graphs(
         label_generator,
         # filename=f"../data/train-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}-{edges}.txt",
-        filename=f"../data/train-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}-{green_prob}.txt",
+        filename=filename,
         write_features=["color"])
 
 
@@ -744,6 +777,7 @@ def test_dataset(
         n_max,
         random_degrees,
         edges,
+        tagger_fn,
         no_green=False,
         force_green=None,
         **kwargs):
@@ -800,11 +834,20 @@ def test_dataset(
     i = random.randint(0, 1000)
     write_graphs(graph_generator, filename=f"temp{i}.txt")
 
-    label_generator = tagger(input_file=f"temp{i}.txt", formula=tagger_fn)
+    label_generator = tagger(
+        input_file=f"temp{i}.txt",
+        formula=tagger_dispatch(tagger_fn))
+
+    if "cycle" in name:
+        filename = f"../data/test-{name}-{number_of_graphs}-{n_min}-{n_max}.txt"
+    else:
+        filename = f"../data/test-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}-{green_prob}.txt"
+
+
     write_graphs(
         label_generator,
         # filename=f"../data/test-{name}-{number_of_graphs}-{n_min}-{n_max}-v{green_prob}-v{force_color[0]}-{edges}.txt",
-        filename=f"../data/test-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}-{green_prob}.txt",
+        filename=filename,
         write_features=["color"])
 
 
@@ -814,16 +857,19 @@ if __name__ == "__main__":
     # if int -> indices
     #_split_line = {"split": [10]}
     _split_line = None
+    _tagger_fn = "green_50_red"
+    _data_name = "cycle"
 
     # only_extreme=True|False
 
     train_dataset(
-        name="random",
+        name=_data_name,
+        tagger_fn=_tagger_fn,
         seed=None,
         n_colors=5,
-        number_of_graphs=5000,
+        number_of_graphs=300,
         n_min=50,
-        n_max=100,
+        n_max=150,
         random_degrees=True,
         min_degree=0,
         max_degree=2,
@@ -832,15 +878,36 @@ if __name__ == "__main__":
         edges=0.025,
         split_line=_split_line,
         force_proportion=2,
-        force_green=3)
+        force_green=3,
+        two_color=True)
 
     test_dataset(
-        name="random",
+        name=_data_name,
+        tagger_fn=_tagger_fn,
+        seed=None,
+        n_colors=5,
+        number_of_graphs=150,
+        n_min=50,
+        n_max=150,
+        random_degrees=True,
+        min_degree=0,
+        max_degree=2,
+        no_green=False,
+        special_line=True,
+        edges=0.025,
+        split_line=_split_line,
+        force_proportion=2,
+        force_green=3,
+        two_color=True)
+
+    test_dataset(
+        name=_data_name,
+        tagger_fn=_tagger_fn,
         seed=None,
         n_colors=5,
         number_of_graphs=500,
-        n_min=50,
-        n_max=100,
+        n_min=20,
+        n_max=180,
         random_degrees=True,
         min_degree=0,
         max_degree=2,
@@ -849,21 +916,5 @@ if __name__ == "__main__":
         edges=0.025,
         split_line=_split_line,
         force_proportion=2,
-        force_green=3)
-
-    test_dataset(
-        name="random",
-        seed=None,
-        n_colors=5,
-        number_of_graphs=500,
-        n_min=100,
-        n_max=200,
-        random_degrees=True,
-        min_degree=0,
-        max_degree=2,
-        no_green=False,
-        special_line=True,
-        edges=0.025,
-        split_line=_split_line,
-        force_proportion=2,
-        force_green=3)
+        force_green=3,
+        two_color=True)

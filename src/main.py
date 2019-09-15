@@ -386,25 +386,25 @@ if __name__ == '__main__':
     # agg, read, comb
     _networks = [
         [{"average": "A"}, {"average": "A"}, {"trainable": "T"}],
-        # [{"average": "A"}, {"average": "A"}, {"mlp": "MLP"}],
+        [{"average": "A"}, {"average": "A"}, {"mlp": "MLP"}],
         [{"average": "A"}, {"max": "M"}, {"trainable": "T"}],
-        # # [{"average": "A"}, {"max": "M"}, {"mlp": "MLP"}],
-        # [{"average": "A"}, {"sum": "S"}, {"trainable": "T"}],
-        # # # [{"average": "A"}, {"sum": "S"}, {"mlp": "MLP"}],
+        [{"average": "A"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"average": "A"}, {"sum": "S"}, {"trainable": "T"}],
+        [{"average": "A"}, {"sum": "S"}, {"mlp": "MLP"}],
 
         [{"max": "M"}, {"average": "A"}, {"trainable": "T"}],
-        # # [{"max": "M"}, {"average": "A"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"average": "A"}, {"mlp": "MLP"}],
         [{"max": "M"}, {"max": "M"}, {"trainable": "T"}],
-        # [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
-        # [{"max": "M"}, {"sum": "S"}, {"trainable": "T"}],
-        # # [{"max": "M"}, {"sum": "S"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"sum": "S"}, {"trainable": "T"}],
+        [{"max": "M"}, {"sum": "S"}, {"mlp": "MLP"}],
 
         [{"sum": "S"}, {"average": "A"}, {"trainable": "T"}],
-        # # [{"sum": "S"}, {"average": "A"}, {"mlp": "MLP"}],
+        [{"sum": "S"}, {"average": "A"}, {"mlp": "MLP"}],
         [{"sum": "S"}, {"max": "M"}, {"trainable": "T"}],
-        # [{"sum": "S"}, {"max": "M"}, {"mlp": "MLP"}],
-        # [{"sum": "S"}, {"sum": "S"}, {"trainable": "T"}],
-        # # [{"sum": "S"}, {"sum": "S"}, {"mlp": "MLP"}],
+        [{"sum": "S"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"sum": "S"}, {"sum": "S"}, {"trainable": "T"}],
+        [{"sum": "S"}, {"sum": "S"}, {"mlp": "MLP"}],
 
         # [{"0": "0"}, {"average": "A"}, {"trainable": "T"}],
         # # [{"0": "0"}, {"average": "A"}, {"mlp": "MLP"}],
@@ -415,33 +415,13 @@ if __name__ == '__main__':
     ]
 
     print("Start running")
-    for _key in ["experiment"]:
+    for _key in ["cycle"]:
         for _enum, _set in enumerate([
 
-            [("train-random-5000-50-100-1-0.02",
-              "test-random-500-50-100-1-0.02",
-              "test-random-500-100-200-1-0.01"),
-             ],
-            [("train-random-5000-50-100-1.2-0.02",
-              "test-random-500-50-100-1.2-0.02",
-              "test-random-500-100-200-1.2-0.01"),
-             ],
-            [("train-random-5000-50-100-1.5-0.02",
-              "test-random-500-50-100-1.5-0.02",
-              "test-random-500-100-200-1.5-0.01"),
-             ],
-            [("train-random-5000-50-100-2-0.02",
-              "test-random-500-50-100-2-0.02",
-              "test-random-500-100-200-2-0.01"),
-             ],
-            [("train-random-20000-50-100-mix-0.02",
-              "test-random-2000-50-100-mix-0.02",
-              "test-random-2000-100-200-mix-0.02"),
-             ],
-            [("train-line-special-5000-50-100",
-              "test-line-special-500-50-100",
-              "test-line-special-500-100-200"),
-             ],
+            [("train-cycle-300-50-150",
+              "test-cycle-150-50-150",
+              "test-cycle-500-20-180"),
+             ]
 
         ]):
 
@@ -494,7 +474,7 @@ if __name__ == '__main__':
                         elif (_net_class == "ac" or _net_class == "gin") and _agg == "0":
                             continue
 
-                        for l in [2, 5, 7]:
+                        for l in [2]:
 
                             print(a, r, c, _net_class, l)
                             logging.info(f"{key}-{_net_class}-{_read_abr}")
@@ -508,12 +488,12 @@ if __name__ == '__main__':
                                     f"--network={_net_class}gnn",
                                     f"--mlp_combine_agg=sum",
                                     f"--filename=logging/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
-                                    "--epochs=10",
+                                    "--epochs=20",
                                     "--iters_per_epoch=50",
                                     # "--no_test",
                                     f"--batch_size=32",
                                     "--test_every=1",
-                                    f"--hidden_dim=16",
+                                    f"--hidden_dim=64",
                                     f"--num_layers={l}"
                                 ])
 
