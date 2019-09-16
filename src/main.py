@@ -400,30 +400,34 @@ if __name__ == '__main__':
     for _key in ["validation"]:
         for _enum, _set in enumerate([
 
-            [("train-random-5000-50-100-1-0.02",
-              "test-random-500-50-100-1-0.02",
-              "test-random-500-100-200-1-0.01"),
-             ],
-            [("train-random-5000-50-100-1.2-0.02",
-              "test-random-500-50-100-1.2-0.02",
-              "test-random-500-100-200-1.2-0.01"),
-             ],
-            [("train-random-5000-50-100-1.5-0.02",
-              "test-random-500-50-100-1.5-0.02",
-              "test-random-500-100-200-1.5-0.01"),
-             ],
+            # [("train-random-5000-50-100-15-0.02",
+            #   "test-random-500-50-100-15-0.02",
+            #   "test-random-500-100-200-15-0.01"),
+            #  ],
+            # [("train-random-5000-50-100-1-0.02",
+            #   "test-random-500-50-100-1-0.02",
+            #   "test-random-500-100-200-1-0.01"),
+            #  ],
+            # [("train-random-5000-50-100-1.2-0.02",
+            #   "test-random-500-50-100-1.2-0.02",
+            #   "test-random-500-100-200-1.2-0.01"),
+            #  ],
+            # [("train-random-5000-50-100-1.5-0.02",
+            #   "test-random-500-50-100-1.5-0.02",
+            #   "test-random-500-100-200-1.5-0.01"),
+            #  ],
             [("train-random-5000-50-100-2-0.02",
               "test-random-500-50-100-2-0.02",
               "test-random-500-100-200-2-0.01"),
              ],
-            [("train-random-20000-50-100-mix-0.02",
-              "test-random-2000-50-100-mix-0.02",
-              "test-random-2000-100-200-mix-0.02"),
-             ],
-            [("train-line-special-5000-50-100",
-              "test-line-special-500-50-100",
-              "test-line-special-500-100-200"),
-             ],
+            # [("train-random-20000-50-100-mix-0.02",
+            #   "test-random-2000-50-100-mix-0.02",
+            #   "test-random-2000-100-200-mix-0.02"),
+            #  ],
+            # [("train-line-special-5000-50-100",
+            #   "test-line-special-500-50-100",
+            #   "test-line-special-500-100-200"),
+            #  ],
         ]):
 
             key = _key
@@ -455,10 +459,10 @@ if __name__ == '__main__':
 
                 for _net_class in [
                     "acgnn",
-                    "gin",
-                    "acrgnn"
+                    # "gin",
+                    # "acrgnn"
                 ]:
-                    filename = f"logging/32/{key}-{enum}-{index}.mix"
+                    filename = f"logging/delete/{key}-{enum}-{index}.mix"
                     for a, r, c in _networks:
                         (_agg, _agg_abr) = list(a.items())[0]
                         (_read, _read_abr) = list(r.items())[0]
@@ -470,7 +474,7 @@ if __name__ == '__main__':
                         elif _net_class == "gin" and _comb == "mlp":
                             continue
 
-                        for l in [2, 5]:
+                        for l in [5]:
 
                             print(a, r, c, _net_class, l)
                             logging.info(f"{key}-{_net_class}-{_read_abr}")
@@ -483,8 +487,8 @@ if __name__ == '__main__':
                                     f"--combine={_comb}",
                                     f"--network={_net_class}",
                                     f"--mlp_combine_agg=add",
-                                    f"--filename=logging/32/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
-                                    "--epochs=10",
+                                    f"--filename=logging/delete/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
+                                    "--epochs=100",
                                     # "--no_test",
                                     f"--batch_size=32",
                                     "--test_every=1",

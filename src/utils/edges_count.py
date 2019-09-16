@@ -1,11 +1,13 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+from torch_geometric.utils import to_networkx
+import torch
 
-from .util import load_data
+from util import load_data
 
 graphs, _ = load_data(
-    dataset="../data/test-line-special-500-100-200.txt",
+    dataset="../data/test-random-500-100-200-15-0.01.txt",
     degree_as_node_label=False)
 
 n_graphs = len(graphs)
@@ -19,14 +21,18 @@ avg_biggest_component = 0.
 avg_connected_components = 0.
 
 for graph_container in graphs:
-    graph = graph_container.graph
-    n_nodes += graph.number_of_nodes()
-    n_edges += graph.number_of_edges()
+    n_nodes += graph_container.num_nodes
+    n_edges += graph_container.num_edges
 
-    n_ones += sum(graph_container.node_labels)
+    n_ones += sum((graph_container.node_labels == 1).numpy())
 
     n_greens += sum(np.array([color for color in np.argmax(
-        graph_container.node_features, axis=1)]) == 0)
+        graph_container.x, axis=1)]) == 0)
+
+    graph_container["graph_label"] = torch.tensor(
+        graph_container["graph_label"])
+
+    graph = to_networkx(graph_container).to_undirected()
 
     avg_biggest_component += max([len(component)
                                   for component in nx.connected_components(graph)])

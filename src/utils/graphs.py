@@ -858,8 +858,9 @@ if __name__ == "__main__":
     # if int -> indices
     #_split_line = {"split": [10]}
     _split_line = None
-    _tagger_fn = "green_50_red"
-    _data_name = "cycle"
+    _tagger_fn = "red_exist_green"
+    _data_name = "random"
+    _prop = 15
 
     # only_extreme=True|False
 
@@ -868,9 +869,9 @@ if __name__ == "__main__":
         tagger_fn=_tagger_fn,
         seed=None,
         n_colors=5,
-        number_of_graphs=300,
+        number_of_graphs=5000,
         n_min=50,
-        n_max=150,
+        n_max=100,
         random_degrees=True,
         min_degree=0,
         max_degree=2,
@@ -878,26 +879,7 @@ if __name__ == "__main__":
         special_line=True,
         edges=0.025,
         split_line=_split_line,
-        force_proportion=2,
-        force_green=3,
-        two_color=True)
-
-    test_dataset(
-        name=_data_name,
-        tagger_fn=_tagger_fn,
-        seed=None,
-        n_colors=5,
-        number_of_graphs=150,
-        n_min=50,
-        n_max=150,
-        random_degrees=True,
-        min_degree=0,
-        max_degree=2,
-        no_green=False,
-        special_line=True,
-        edges=0.025,
-        split_line=_split_line,
-        force_proportion=2,
+        force_proportion=_prop,
         force_green=3,
         two_color=True)
 
@@ -907,8 +889,8 @@ if __name__ == "__main__":
         seed=None,
         n_colors=5,
         number_of_graphs=500,
-        n_min=20,
-        n_max=180,
+        n_min=50,
+        n_max=100,
         random_degrees=True,
         min_degree=0,
         max_degree=2,
@@ -916,6 +898,25 @@ if __name__ == "__main__":
         special_line=True,
         edges=0.025,
         split_line=_split_line,
-        force_proportion=2,
+        force_proportion=_prop,
+        force_green=3,
+        two_color=True)
+
+    test_dataset(
+        name=_data_name,
+        tagger_fn=_tagger_fn,
+        seed=None,
+        n_colors=5,
+        number_of_graphs=500,
+        n_min=100,
+        n_max=200,
+        random_degrees=True,
+        min_degree=0,
+        max_degree=_prop,
+        no_green=False,
+        special_line=True,
+        edges=0.025,
+        split_line=_split_line,
+        force_proportion=_prop,
         force_green=3,
         two_color=True)
