@@ -95,11 +95,12 @@ def argument_parser():
     parser.add_argument(
         '--network',
         type=str,
-        default="acrgnn",
+        default="acrgnnv2",
         choices=[
+            "acrgnnv2",
             "acrgnn",
             "acgnn",
-            "gingnn"],
+            "gin"],
         help='Type of GNN to use. a=Aggregate, c=Combine, r=Readout')
     parser.add_argument(
         '--recursive_weighting',

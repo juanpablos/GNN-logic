@@ -5,8 +5,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch_geometric.data import DataLoader
+from torch_scatter import scatter_add
 from tqdm import tqdm
 
+from gnn.acr_gnn import ACRGNN as ACRGNNv2
 from models import *
 from utils.argparser import argument_parser
 from utils.graphs import online_generator
@@ -19,241 +22,205 @@ logging.basicConfig(
     filename="logging/logger.log")
 
 
-def __batch_generator(configuration, batch_size):
-    ...
+def __loss_aux(output, loss, data, binary_prediction):
+    if binary_prediction:
+        labels = torch.zeros_like(output).scatter_(
+            1, data.node_labels.unsqueeze(1), 1.)
+    else:
+        raise NotImplementedError()
+
+    return loss(output, labels)
 
 
 def train(
-        args,
         model,
         device,
-        train_graphs,
+        training_data,
         optimizer,
         criterion,
         scheduler,
-        epoch,
-        online=None) -> float:
+        binary_prediction=True) -> float:
     model.train()
 
-    total_iters = args.iters_per_epoch
-    pbar = tqdm(range(total_iters), unit='batch')
+    loss_accum = 0.
+    train_micro_avg = 0.
+    train_macro_avg = 0.
+    n_nodes = 0
+    n_graphs = 0
+    for data in tqdm(training_data):
+        data = data.to(device)
 
-    loss_accum = 0
-    for pos in pbar:
+        output = model(x=data.x, edge_index=data.edge_index, batch=data.batch)
 
-        # batch_graph = train_graphs
-        if online is None:
-            try:
-                batch_graph = np.random.choice(
-                    train_graphs, size=args.batch_size, replace=False)
-            except ValueError:
-                batch_graph = np.random.choice(
-                    train_graphs, size=args.batch_size, replace=True)
-        else:
-            batch_graph = __batch_generator(online, args.batch_size)
+        loss = __loss_aux(
+            output=output,
+            loss=criterion,
+            data=data,
+            binary_prediction=binary_prediction)
 
-        # batches_nodes -> all nodes in the batch
-        # (sum(n_nodes(graph), classes), for graph in batch
-        output = model(batch_graph)
-
-        # get the real node labels (nodes) vector
-        # (sum(n_nodes(graph)), for graph in batch
-        labels = []
-        for graph in batch_graph:
-            labels.extend(graph.node_labels)
-        labels = torch.tensor(
-            labels, dtype=torch.long).unsqueeze(
-            dim=1).to(device)
-        labels = torch.zeros_like(output).scatter_(1, labels, 1.).to(device)
-
-        loss = criterion(output, labels)
-
-        # backprop
-        if optimizer is not None:
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            scheduler.step()
-
-        loss_accum += loss.detach().cpu().numpy()
-
-        # report
-        pbar.set_description('epoch: %d' % (epoch))
-
-    average_loss = loss_accum / total_iters
-    print("loss training: %f" % (average_loss))
-
-    return average_loss
-
-
-# pass data to model with minibatch during testing to avoid memory
-# overflow (does not perform backpropagation)
-def pass_data_iteratively(model, graphs, minibatch_size=128):
-    def chunks(iterable, n):
-        for i in range(0, len(iterable), n):
-            yield iterable[i:i + n]
-
-    model.eval()
-    output = []
-    n_nodes = []
-    labels = []
-    for graph_batch in chunks(graphs, minibatch_size):
-        output.append(model(graph_batch).detach())
-        for graph in graph_batch:
-            n_nodes.append(len(graph.graph))
-            labels.extend(graph.node_labels)
-
-    return torch.cat(output, dim=0), n_nodes, np.cumsum(n_nodes), labels
-
-
-def test(
-        args,
-        model,
-        device,
-        train_graphs,
-        test_graphs,
-        epoch,
-        run_test,
-        criterion,
-        another_test=None):
-    model.eval()
-
-    with torch.no_grad():
-
-        # --- train
-        output, n_nodes, indices, labels = pass_data_iteratively(
-            model, train_graphs)
         output = torch.sigmoid(output)
         _, predicted_labels = output.max(dim=1)
 
-        ######
+        micro, macro = __accuracy_aux(
+            node_labels=data.node_labels,
+            predicted_labels=predicted_labels,
+            batch=data.batch, device=device)
 
-        pred_zeros = np.sum(predicted_labels.cpu().numpy() == 0)
-        pred_ones = np.sum(predicted_labels.cpu().numpy() == 1)
-        real_zeros = np.sum(np.array(labels) == 0)
-        real_ones = np.sum(np.array(labels) == 1)
-        logging.info(f"Epoch {epoch} - Train")
-        logging.info(f"Predicted 0s: {pred_zeros}/{real_zeros}")
-        logging.info(f"Predicted 1s: {pred_ones}/{real_ones}")
-        ######
+        train_micro_avg += micro.cpu().numpy()
+        train_macro_avg += macro.cpu().numpy()
+        n_nodes = data.num_nodes
+        n_graphs = data.num_graphs
 
-        # equals both vectors, prediction == label
-        results = np.equal(predicted_labels.cpu(), labels).numpy()
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        scheduler.step()
 
-        # micro average -> mean between all nodes
-        train_micro_avg = np.mean(results)
+        loss_accum += loss.detach().cpu().numpy()
 
-        # split node equality by graph, we dont need the last value of
-        # `indices`
-        macro_split = np.split(results, indices[:-1])
-        # macro average -> mean between the mean of nodes for each graph
-        train_macro_avg = np.mean([np.mean(graph) for graph in macro_split])
+    train_micro_avg = train_micro_avg / n_nodes
+    train_macro_avg = train_macro_avg / n_graphs
+    average_loss = loss_accum / len(training_data)
 
-        # --- test
-        test_micro_avg, test_macro_avg = -1, -1
-        if not args.no_test:
-            if run_test:
-
-                output, n_nodes, indices, labels = pass_data_iteratively(
-                    model, test_graphs)
-                output = torch.sigmoid(output)
-                _, predicted_labels = output.max(dim=1)
-
-                # test loss
-                _labels = torch.tensor(
-                    labels, dtype=torch.long).unsqueeze(dim=1).to(device)
-                _labels = torch.zeros_like(output).scatter_(
-                    1, _labels, 1.).to(device)
-
-                test1_loss = criterion(output, _labels).detach().cpu().numpy()
-
-                # equals both vectors, prediction == label
-                results = np.equal(predicted_labels.cpu(), labels).numpy()
-
-                # micro average -> mean between all nodes
-                test_micro_avg = np.mean(results)
-
-                ######
-                pred_zeros = np.sum(predicted_labels.cpu().numpy() == 0)
-                pred_ones = np.sum(predicted_labels.cpu().numpy() == 1)
-                real_zeros = np.sum(np.array(labels) == 0)
-                real_ones = np.sum(np.array(labels) == 1)
-
-                logging.info(f"Epoch {epoch} - Test1")
-                logging.info(f"Predicted 0s: {pred_zeros}/{real_zeros}")
-                logging.info(f"Predicted 1s: {pred_ones}/{real_ones}")
-                ######
-
-                # split node equality by graph, we dont need the last value of
-                # `indices`
-                macro_split = np.split(results, indices[:-1])
-                # macro average -> mean between the mean of nodes for each
-                # graph
-                test_macro_avg = np.mean([np.mean(graph)
-                                          for graph in macro_split])
-
-                if another_test is not None:
-                    output, n_nodes, indices, labels = pass_data_iteratively(
-                        model, another_test)
-                    output = torch.sigmoid(output)
-                    _, predicted_labels = output.max(dim=1)
-
-                    # test loss
-                    _labels = torch.tensor(
-                        labels, dtype=torch.long).unsqueeze(
-                        dim=1).to(device)
-                    _labels = torch.zeros_like(output).scatter_(
-                        1, _labels, 1.).to(device)
-
-                    test2_loss = criterion(
-                        output, _labels).detach().cpu().numpy()
-
-                    # equals both vectors, prediction == label
-                    results = np.equal(predicted_labels.cpu(), labels).numpy()
-
-                    ######
-                    pred_zeros = np.sum(predicted_labels.cpu().numpy() == 0)
-                    pred_ones = np.sum(predicted_labels.cpu().numpy() == 1)
-                    real_zeros = np.sum(np.array(labels) == 0)
-                    real_ones = np.sum(np.array(labels) == 1)
-
-                    logging.info(f"Epoch {epoch} - Test2")
-                    logging.info(f"Predicted 0s: {pred_zeros}/{real_zeros}")
-                    logging.info(f"Predicted 1s: {pred_ones}/{real_ones}")
-                    ######
-
-                    # micro average -> mean between all nodes
-                    test_another_micro_avg = np.mean(results)
-
-                    # split node equality by graph, we dont need the last value of
-                    # `indices`
-                    macro_split = np.split(results, indices[:-1])
-                    # macro average -> mean between the mean of nodes for each
-                    # graph
-                    test_another_macro_avg = np.mean(
-                        [np.mean(graph) for graph in macro_split])
-
-    print(f"Test1 loss: {test1_loss}")
-    print(f"Test2 loss: {test2_loss}")
+    print(f"Train loss: {average_loss}")
     print(
         f"Train accuracy: micro: {train_micro_avg}\tmacro: {train_macro_avg}")
-    print(f"Test accuracy: micro: {test_micro_avg}\tmacro: {test_macro_avg}")
-    if another_test is not None:
-        print(
-            f"Test accuracy: micro: {test_another_micro_avg}\tmacro: {test_another_macro_avg}")
 
-        return train_micro_avg, train_macro_avg, test_micro_avg, test_macro_avg, test_another_micro_avg, test_another_macro_avg, test1_loss, test2_loss
+    return average_loss, train_micro_avg, train_macro_avg
 
-    return train_micro_avg, train_macro_avg, test_micro_avg, test_macro_avg, - \
-        1, -1, test1_loss, -1
+
+def __accuracy_aux(node_labels, predicted_labels, batch, device):
+
+    results = torch.eq(
+        predicted_labels,
+        node_labels).type(
+        torch.FloatTensor).to(device)
+
+    # micro average -> mean between all nodes
+    micro = torch.sum(results)
+
+    # macro average -> mean between the mean of nodes for each graph
+    macro = scatter_add(results, batch)
+
+    return micro, macro
+
+
+def test(
+        model,
+        device,
+        criterion,
+        epoch,
+        test_data1,
+        test_data2=None,
+        binary_prediction=True):
+    model.eval()
+
+    # ----- TEST 1 ------
+    test1_micro_avg = 0.
+    test1_macro_avg = 0.
+    test1_avg_loss = 0.
+
+    if test_data1 is not None:
+        n_nodes = 0
+        n_graphs = 0
+        for data in test_data1:
+            data = data.to(device)
+
+            with torch.no_grad():
+                output = model(
+                    x=data.x,
+                    edge_index=data.edge_index,
+                    batch=data.batch)
+
+            loss = __loss_aux(
+                output=output,
+                loss=criterion,
+                data=data,
+                binary_prediction=binary_prediction)
+
+            test1_avg_loss += loss.detach().cpu().numpy()
+
+            output = torch.sigmoid(output)
+            _, predicted_labels = output.max(dim=1)
+
+            micro, macro = __accuracy_aux(
+                node_labels=data.node_labels,
+                predicted_labels=predicted_labels,
+                batch=data.batch, device=device)
+
+            test1_micro_avg += micro.cpu().numpy()
+            test1_macro_avg += macro.cpu().numpy()
+            n_nodes = data.num_nodes
+            n_graphs = data.num_graphs
+
+        test1_avg_loss = test1_avg_loss / len(test_data1)
+
+        test1_micro_avg = test1_micro_avg / n_nodes
+        test1_macro_avg = test1_macro_avg / n_graphs
+
+    # ----- /TEST 1 ------
+
+    # ----- TEST 2 ------
+    test2_micro_avg = 0.
+    test2_macro_avg = 0.
+    test2_avg_loss = 0.
+
+    if test_data2 is not None:
+        n_nodes = 0
+        n_graphs = 0
+        for data in test_data2:
+            data = data.to(device)
+
+            with torch.no_grad():
+                output = model(
+                    x=data.x,
+                    edge_index=data.edge_index,
+                    batch=data.batch)
+
+            loss = __loss_aux(
+                output=output,
+                loss=criterion,
+                data=data,
+                binary_prediction=binary_prediction)
+
+            test2_avg_loss += loss.detach().cpu().numpy()
+
+            output = torch.sigmoid(output)
+            _, predicted_labels = output.max(dim=1)
+
+            micro, macro = __accuracy_aux(
+                node_labels=data.node_labels,
+                predicted_labels=predicted_labels,
+                batch=data.batch, device=device)
+
+            test2_micro_avg += micro.cpu().numpy()
+            test2_macro_avg += macro.cpu().numpy()
+            n_nodes = data.num_nodes
+            n_graphs = data.num_graphs
+
+        test2_avg_loss = test2_avg_loss / len(test_data2)
+
+        test2_micro_avg = test2_micro_avg / n_nodes
+        test2_macro_avg = test2_macro_avg / n_graphs
+
+        # ----- /TEST 2 ------
+
+    print(f"Test1 loss: {test1_avg_loss}")
+    print(f"Test2 loss: {test2_avg_loss}")
+    print(f"Test accuracy: micro: {test1_micro_avg}\tmacro: {test1_macro_avg}")
+    print(f"Test accuracy: micro: {test2_micro_avg}\tmacro: {test2_macro_avg}")
+
+    return(test1_avg_loss, test1_micro_avg, test1_macro_avg), \
+        (test2_avg_loss, test2_micro_avg, test2_macro_avg)
 
 
 def main(
         args,
-        data_train=None,
-        data_test=None,
+        manual,
+        train_data=None,
+        test1_data=None,
+        test2_data=None,
         n_classes=None,
-        another_test=None,
         save_model=None,
         load_model=None,
         train_model=True):
@@ -261,49 +228,48 @@ def main(
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    device = torch.device("cuda:" + str(args.device)
-                          ) if torch.cuda.is_available() else torch.device("cpu")
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
-
-    if data_train is None:
-        # list of graphs, (number of label classes for the graph, number of
-        # feature classes for nodes, number of label classes for the nodes)
-        train_graphs, (n_graph_classes, n_node_features, n_node_labels) = load_data(
-            dataset=args.data_train, degree_as_node_label=args.degree_as_label)
+        device = torch.device("cuda:" + str(args.device))
     else:
-        print("Using preloaded data")
-        train_graphs = data_train
+        device = torch.device("cpu")
 
-    if args.task_type == "node":
-        if n_classes is None:
-            num_classes = n_node_labels
-        else:
-            print("Using preloaded data")
-            num_classes = n_classes
-    else:
+    if not manual:
         raise NotImplementedError()
 
-    if data_test is None:
-        if args.data_test is not None:
-            test_graphs, _ = load_data(
-                dataset=args.data_test, degree_as_node_label=args.degree_as_label)
-        else:
-            if args.no_test:
-                train_graphs, test_graphs = train_graphs, None
-            else:
-                train_graphs, test_graphs = separate_data(
-                    train_graphs, args.seed)
     else:
-        print("Using preloaded data")
-        test_graphs = data_test
+        assert train_data is not None
+        assert test1_data is not None
+        assert test2_data is not None
+        assert n_classes is not None
 
+        # manual settings
+        print("Using preloaded data")
+        train_graphs = train_data
+        test_graphs1 = test1_data
+        test_graphs2 = test2_data
+
+        if args.task_type == "node":
+            num_classes = n_classes
+        else:
+            raise NotImplementedError()
+
+    train_loader = DataLoader(
+        train_graphs,
+        batch_size=args.batch_size,
+        shuffle=True, pin_memory=True)
+    test1_loader = DataLoader(test_graphs1, batch_size=128, pin_memory=True)
+    test2_loader = DataLoader(test_graphs2, batch_size=128, pin_memory=True)
+
+    # TODO: remove old code
     if args.network == "acgnn":
         _model = ACGNN
     elif args.network == "acrgnn":
         _model = ACRGNN
-    elif args.network == "gingnn":
+    elif args.network == "gin":
         _model = GIN
+    elif args.network == "acrgnnv2":
+        _model = ACRGNNv2
     else:
         raise ValueError()
 
@@ -341,44 +307,54 @@ def main(
         # `epoch` is only for printing purposes
         for epoch in range(1, args.epochs + 1):
 
+            # TODO: binary prediction
             avg_loss = train(
-                args=args,
                 model=model,
                 device=device,
-                train_graphs=train_graphs,
+                training_data=train_loader,
                 optimizer=optimizer,
                 criterion=criterion,
                 scheduler=scheduler,
-                epoch=epoch)
+                binary_prediction=True)
 
-            # run the test set only every 20 epochs
-            if epoch % args.test_every == 0:
-                train_micro, train_macro, test_micro, test_macro, test_micro2, test_macro2, test1_loss, test2_loss = test(
-                    args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=True, another_test=another_test, criterion=criterion)
-            else:
-                train_micro, train_macro, test_micro, test_macro, test_micro2, test_macro2, test1_loss, test2_loss = test(
-                    args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=epoch, run_test=False, another_test=another_test, criterion=criterion)
+            (train_micro, train_macro), (test1_loss, test1_micro, test1_macro), (test2_loss, test2_micro, test2_macro) = test(
+                model=model,
+                device=device,
+                training_data=train_loader,
+                test_data1=test1_loader,
+                test_data2=test2_loader,
+                epoch=epoch,
+                criterion=criterion)
+
+            file_line = f"{avg_loss: .10f}, {test1_loss: .10f}, {test2_loss: .10f}, {train_micro: .8f}, {train_macro: .8f}, {test1_micro: .8f}, {test1_macro: .8f}, {test2_micro: .8f}, {test2_macro: .8f}"
 
             if not args.filename == "":
                 with open(args.filename, 'a') as f:
-                    f.write(
-                        f"{avg_loss:.10f},{test1_loss:.10f},{test2_loss:.10f},{train_micro:.8f},{train_macro:.8f},{test_micro:.8f},{test_macro:.8f},{test_micro2:.8f},{test_macro2:.8f}\n")
+                    f.write(file_line + "\n")
 
         if save_model is not None:
             torch.save(model.state_dict(), save_model)
 
-        return f"{avg_loss:.10f},{test1_loss:.10f},{test2_loss:.10f},{train_micro:.8f},{train_macro:.8f},{test_micro:.8f},{test_macro:.8f},{test_micro2:.8f},{test_macro2:.8f},"
+        return file_line + ","
 
     else:
 
-        train_micro, train_macro, test_micro, test_macro, test_micro2, test_macro2, test1_loss, test2_loss = test(
-            args=args, model=model, device=device, train_graphs=train_graphs, test_graphs=test_graphs, epoch=-1, run_test=True, another_test=another_test, criterion=criterion)
+        (train_micro, train_macro), (test1_loss, test1_micro, test1_macro), (test2_loss, test2_micro, test2_macro) = test(
+            model=model,
+            device=device,
+            training_data=train_loader,
+            test_data1=test1_loader,
+            test_data2=test2_loader,
+            epoch=-1,
+            criterion=criterion)
 
-        with open(args.filename, 'a') as f:
-            f.write(
-                f"{test1_loss:.10f},{test2_loss:.10f},{train_micro:.8f},{train_macro:.8f},{test_micro:.8f},{test_macro:.8f},{test_micro2:.8f},{test_macro2:.8f}\n")
+        file_line = f"{test1_loss: .10f}, {test2_loss: .10f}, {train_micro: .8f}, {train_macro: .8f}, {test1_micro: .8f}, {test1_macro: .8f}, {test2_micro: .8f}, {test2_macro: .8f}"
 
-        return f"{test1_loss:.10f},{test2_loss:.10f},{train_micro:.8f},{train_macro:.8f},{test_micro:.8f},{test_macro:.8f},{test_micro2:.8f},{test_macro2:.8f},"
+        if not args.filename == "":
+            with open(args.filename, 'a') as f:
+                f.write(file_line + "\n")
+
+        return file_line + ","
 
 
 if __name__ == '__main__':
@@ -451,14 +427,12 @@ if __name__ == '__main__':
                 _test_graphs2, _ = load_data(
                     dataset=f"data/{_test2}.txt",
                     degree_as_node_label=False)
-                # _train_graphs, (_, _, _n_node_labels) = load_data(
-                #     dataset=f"test.txt",
-                #     degree_as_node_label=False)
 
                 for _net_class in [
-                    "ac",
-                    "gin",
-                    "acr"
+                    # "acgnn",
+                    # "gin",
+                    # "acrgnn"
+                    "acrgnnv2"
                 ]:
                     filename = f"logging/{key}-{enum}-{index}.mix"
                     for a, r, c in _networks:
@@ -466,12 +440,12 @@ if __name__ == '__main__':
                         (_read, _read_abr) = list(r.items())[0]
                         (_comb, _comb_abr) = list(c.items())[0]
 
-                        if (_net_class == "ac" or _net_class == "gin") and (
+                        if (_net_class == "acgnn" or _net_class == "gin") and (
                                 _read == "max" or _read == "sum"):
                             continue
                         elif _net_class == "gin" and _comb == "mlp":
                             continue
-                        elif (_net_class == "ac" or _net_class == "gin") and _agg == "0":
+                        elif (_net_class == "acgnn" or _net_class == "gin") and _agg == "0":
                             continue
 
                         for l in [2]:
@@ -485,7 +459,7 @@ if __name__ == '__main__':
                                     f"--readout={_read}",
                                     f"--aggregate={_agg}",
                                     f"--combine={_comb}",
-                                    f"--network={_net_class}gnn",
+                                    f"--network={_net_class}",
                                     f"--mlp_combine_agg=sum",
                                     f"--filename=logging/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
                                     "--epochs=20",
