@@ -1,9 +1,9 @@
-from typing import Dict, List, Tuple, Union, Set
-from torch_geometric.data import Data
+from typing import List, Set, Tuple
+
 import networkx as nx
-import numpy as np
 import torch
 from sklearn.model_selection import train_test_split
+from torch_geometric.data import Data
 
 
 def load_data(dataset: str,
@@ -18,9 +18,9 @@ def load_data(dataset: str,
     print('Loading data...')
     graph_list: List[Data] = []
 
-    unique_graph_label: Set[int] = {}
-    unique_node_labels: Set[int] = {}
-    unique_node_features: Set[int] = {}
+    unique_graph_label: Set[int] = set()
+    unique_node_labels: Set[int] = set()
+    unique_node_features: Set[int] = set()
 
     with open(dataset, 'r') as in_file:
         n_graphs = int(in_file.readline().strip())
@@ -82,25 +82,30 @@ def load_data(dataset: str,
                 # ---- /EDGES ----
             # --- /READING GRAPH ----
 
-            feature_classes = len(unique_node_features)
-            features = torch.tensor(graph.node_features)
-
-            x = torch.nn.functional.one_hot(
-                features.squeeze(), feature_classes)
             edges = torch.tensor(list(graph.edges), dtype=torch.long)
             node_labels = torch.tensor(node_labels)
 
+            # placeholder
+            features = torch.tensor(node_features)
+
             graph_list.append(
                 Data(
-                    x=x,
+                    x=features,
                     edge_index=edges.t().contiguous(),
                     node_labels=node_labels,
                     graph_label=graph_label
                 ))
 
+    num_features = len(unique_node_features)
+    for data in graph_list:
+        x = torch.nn.functional.one_hot(
+            data.x.squeeze(), num_features).type(torch.FloatTensor)
+
+        data.x = x
+
     print(f"#Graphs: {len(graph_list)}")
     print(f"#Graphs Labels: {len(unique_graph_label)}")
-    print(f"#Node Properties: {len(unique_node_features)}")
+    print(f"#Node Features: {len(unique_node_features)}")
     print(f"#Node Labels: {len(unique_node_labels)}")
 
     return graph_list, \
@@ -109,9 +114,8 @@ def load_data(dataset: str,
          len(unique_node_labels))
 
 
-def separate_data(graph_list: List[S2VGraph], seed: int,
-                  test_size: float = 0.2) -> Tuple[List[S2VGraph],
-                                                   List[S2VGraph]]:
+def separate_data(graph_list, seed: int,
+                  test_size: float = 0.2):
 
     return train_test_split(
         graph_list,

@@ -8,17 +8,14 @@ def argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_train', type=str,
                         help='data to train')
-    parser.add_argument('--data_test', type=str,
+    parser.add_argument('--data_test1', type=str,
                         help='data to test')
+    parser.add_argument('--data_test2', type=str,
+                        help='data to test, bigger test')
     parser.add_argument('--device', type=int, default=0,
                         help='which gpu to use if any (default: 0)')
     parser.add_argument('--batch_size', type=int, default=32,
                         help='input batch size for training (default: 32)')
-    parser.add_argument(
-        '--iters_per_epoch',
-        type=int,
-        default=50,
-        help='number of iterations per each epoch (default: 50)')
     parser.add_argument('--epochs', type=int, default=350,
                         help='number of epochs to train (default: 350)')
     parser.add_argument(
@@ -53,40 +50,36 @@ def argument_parser():
     parser.add_argument(
         '--readout',
         type=str,
-        default="sum",
+        default="max",
         choices=[
-            "sum",
-            "average",
+            "add",
+            "mean",
             "max"],
-        help='Pooling for over all nodes in a graph: sum or average')
+        help='Pooling for over all nodes in a graph: add, mean or max')
     parser.add_argument(
         '--aggregate',
         type=str,
-        default="sum",
+        default="add",
         choices=[
-            "sum",
-            "average",
-            "max",
-            "0"],
-        help='Pooling for over neighboring nodes: sum, average or max')
+            "add",
+            "mean",
+            "max"],
+        help='Pooling for over neighboring nodes: add, mean or max')
     parser.add_argument(
         '--combine',
         type=str,
-        default="trainable",
+        default="simple",
         choices=[
-            "sum",
-            "average",
-            "max",
-            "trainable",
+            "simple",
             "mlp"],
-        help='Reduction of the aggregation: sum, average, max, trainable or mlp')
+        help='Reduction of the aggregation: simple or mlp')
     parser.add_argument(
         '--mlp_combine_agg',
         type=str,
-        default="sum",
+        default="add",
         choices=[
-            "sum",
-            "average",
+            "add",
+            "mean",
             "max",
             "concat"],
         help='Aggregate function to use inside mlp combine')
@@ -95,9 +88,8 @@ def argument_parser():
     parser.add_argument(
         '--network',
         type=str,
-        default="acrgnnv2",
+        default="acrgnn",
         choices=[
-            "acrgnnv2",
             "acrgnn",
             "acgnn",
             "gin"],
@@ -118,8 +110,4 @@ def argument_parser():
         '--degree_as_label',
         action="store_true",
         help='If there are no labels, use the node degre as label.')
-    parser.add_argument(
-        '--no_test',
-        action="store_true",
-        help='Dont split train/test')
     return parser

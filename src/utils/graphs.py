@@ -5,6 +5,7 @@ import networkx as nx
 import numpy as np
 
 from itertools import cycle
+# TODO: Refactor
 
 
 def __generate_empty_graph(n_nodes: int, ** kwargs) -> nx.Graph:

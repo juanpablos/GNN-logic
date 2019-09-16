@@ -1,14 +1,11 @@
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-import matplotlib.pyplot as plt
-import utils.graphs as generator
-import numpy as np
 
-from utils.util import load_data
-
+from .util import load_data
 
 graphs, _ = load_data(
-    dataset="data/train-cycle-150-50-150.txt",
+    dataset="../data/test-line-special-500-100-200.txt",
     degree_as_node_label=False)
 
 n_graphs = len(graphs)

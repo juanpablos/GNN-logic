@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
 
-from gnn.conv_layers import ACRConv
+from gnn.conv_layers import ACConv
 
 
-class ACRGNN(torch.nn.Module):
+class ACGNN(torch.nn.Module):
 
     def __init__(
             self,
@@ -13,13 +13,12 @@ class ACRGNN(torch.nn.Module):
             output_dim: int,
             combine_type: str,
             aggregate_type: str,
-            readout_type: str,
             num_layers: int,
             num_mlp_layers: int,
             task: str,
             **kwargs
     ):
-        super(ACRGNN, self).__init__()
+        super(ACGNN, self).__init__()
 
         self.num_layers = num_layers
         self.task = task
@@ -30,11 +29,10 @@ class ACRGNN(torch.nn.Module):
         self.batch_norms = torch.nn.ModuleList()
 
         for layer in range(self.num_layers):
-            self.convs.append(ACRConv(hidden_dim=hidden_dim,
-                                      aggregate_type=aggregate_type,
-                                      readout_type=readout_type,
-                                      combine_type=combine_type,
-                                      num_mlp_layers=num_mlp_layers))
+            self.convs.append(ACConv(hidden_dim=hidden_dim,
+                                     aggregate_type=aggregate_type,
+                                     combine_type=combine_type,
+                                     num_mlp_layers=num_mlp_layers))
 
             self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
 
