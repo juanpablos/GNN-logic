@@ -6,7 +6,8 @@ from torch_geometric.nn.conv import MessagePassing
 class ACRConv(MessagePassing):
     def __init__(
             self,
-            hidden_dim: int,
+            input_dim: int,
+            output_dim: int,
             aggregate_type: str,
             readout_type: str,
             combine_type: str,
@@ -22,9 +23,9 @@ class ACRConv(MessagePassing):
 
         super(ACRConv, self).__init__(aggr=aggregate_type, **kwargs)
 
-        self.V = nn.Linear(hidden_dim, hidden_dim)
-        self.A = nn.Linear(hidden_dim, hidden_dim)
-        self.R = nn.Linear(hidden_dim, hidden_dim)
+        self.V = nn.Linear(input_dim, output_dim)
+        self.A = nn.Linear(input_dim, output_dim)
+        self.R = nn.Linear(input_dim, output_dim)
 
         self.readout = self.__get_readout_fn(readout_type)
 
@@ -60,7 +61,8 @@ class ACRConv(MessagePassing):
 class ACConv(MessagePassing):
     def __init__(
             self,
-            hidden_dim: int,
+            input_dim: int,
+            output_dim: int,
             aggregate_type: str,
             combine_type: str,
             num_mlp_layers: int,
@@ -74,8 +76,8 @@ class ACConv(MessagePassing):
 
         super(ACConv, self).__init__(aggr=aggregate_type, **kwargs)
 
-        self.V = nn.Linear(hidden_dim, hidden_dim)
-        self.A = nn.Linear(hidden_dim, hidden_dim)
+        self.V = nn.Linear(input_dim, output_dim)
+        self.A = nn.Linear(input_dim, output_dim)
 
     def forward(self, h, edge_index, batch):
         return self.propagate(

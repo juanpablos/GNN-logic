@@ -23,23 +23,39 @@ class ACGNN(torch.nn.Module):
         self.num_layers = num_layers
         self.task = task
 
-        self.padding = nn.ConstantPad1d((0, hidden_dim - input_dim), value=0)
+        self.bigger_input = input_dim > hidden_dim
+
+        if not self.bigger_input:
+            self.padding = nn.ConstantPad1d(
+                (0, hidden_dim - input_dim), value=0)
 
         self.convs = torch.nn.ModuleList()
         self.batch_norms = torch.nn.ModuleList()
 
         for layer in range(self.num_layers):
-            self.convs.append(ACConv(hidden_dim=hidden_dim,
-                                     aggregate_type=aggregate_type,
-                                     combine_type=combine_type,
-                                     num_mlp_layers=num_mlp_layers))
+            if layer == 0 and self.bigger_input:
+                self.convs.append(ACConv(input_dim=input_dim,
+                                         output_dim=hidden_dim,
+                                         aggregate_type=aggregate_type,
+                                         combine_type=combine_type,
+                                         num_mlp_layers=num_mlp_layers))
+            else:
+                self.convs.append(ACConv(input_dim=hidden_dim,
+                                         output_dim=hidden_dim,
+                                         aggregate_type=aggregate_type,
+                                         combine_type=combine_type,
+                                         num_mlp_layers=num_mlp_layers))
 
             self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
 
         self.linear_prediction = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x, edge_index, batch):
-        h = self.padding(x)
+
+        h = x
+        if not self.bigger_input:
+            h = self.padding(h)
+
         for layer in range(self.num_layers):
             h = self.convs[layer](h=h, edge_index=edge_index, batch=batch)
             h = torch.relu(h)
