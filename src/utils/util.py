@@ -1,86 +1,39 @@
-from typing import Dict, List, Tuple, Union
-
+from typing import Dict, List, Tuple, Union, Set
+from torch_geometric.data import Data
 import networkx as nx
 import numpy as np
 import torch
 from sklearn.model_selection import train_test_split
-from torch.jit.annotations import TensorType
-
-
-class S2VGraph(object):
-    def __init__(
-            self,
-            graph: nx.Graph,
-            graph_label: int,
-            node_features: List[List[int]],
-            node_labels: List[int],
-            neighbors: List[List[int]],
-            max_neighbor: int
-    ):
-        """
-            graph: a networkx graph
-            graph_label: an integer graph label
-            node_labels: a list of integer node tags
-            node_features: a torch float tensor, one-hot representation of the tag that is used as input to neural nets
-            edge_mat: a torch long tensor, contain edge list, will be used to create torch sparse tensor
-            neighbors: list of neighbors (without self-loop)
-        """
-        self.graph: nx.Graph = graph
-        self.graph_label: int = graph_label
-        self.node_features: Union[List[List[int]], TensorType] = node_features
-        self.node_labels: List[int] = node_labels
-        self.neighbors: List[List[int]] = neighbors
-        self.max_neighbor: int = max_neighbor
-
-        self.edge_mat: TensorType = None
-
-        # ? self.aux_node_label_mapping: Dict[int, int] = None
-
-# TODO: allow general labels and features. Right now the feature number is
-# their label
-
-
-class OnlineLoader:
-    def __init__(self, degree_as_node_label):
-        self.graph_label_dict: Dict[int, int] = {}
-
-        self.node_labels: Dict[int, int] = {}
-        self.node_features: Dict[int, int] = {}
-
-    def __call__(selg, graph):
-        ...
 
 
 def load_data(dataset: str,
               degree_as_node_label: bool = False,
-              graph_type: int = 2,) -> Tuple[List[S2VGraph],
-                                             Tuple[int, int, int]]:
+              graph_type: int = 2,
+              undirected=True) -> Tuple[List[Data],
+                                        Tuple[int, int, int]]:
 
     if graph_type == 1:
         raise NotImplementedError()
 
     print('Loading data...')
-    graph_list: List[S2VGraph] = []
-    unique_graph_label: Dict[int, int] = {}
-    # # {real_label : index}
-    unique_node_labels: Dict[int, int] = {}
-    unique_node_features: Dict[int, int] = {}
+    graph_list: List[Data] = []
+
+    unique_graph_label: Set[int] = {}
+    unique_node_labels: Set[int] = {}
+    unique_node_features: Set[int] = {}
 
     with open(dataset, 'r') as in_file:
         n_graphs = int(in_file.readline().strip())
         for _ in range(n_graphs):
             n_nodes, graph_label = map(
                 int, in_file.readline().strip().split(" "))
-            # register graph label (not really important)
-            if graph_label not in unique_graph_label:
-                # index the graph_label
-                unique_graph_label[graph_label] = len(unique_graph_label)
 
-            graph = nx.Graph()
-            _nodes_label: List[int] = []
-            max_neighbors: int = 0
-            _nodes_features: List[List[int]] = []
-            neighbor_collection = []
+            # register graph label (not really important)
+            unique_graph_label.add(graph_label)
+
+            graph: nx.Graph = nx.Graph()
+            node_labels: List[int] = []
+            node_features: List[List[int]] = []
 
             # --- READING GRAPH ----
             # for each node in the graph
@@ -89,7 +42,7 @@ def load_data(dataset: str,
                 graph.add_node(node_id)
 
                 # n_features, [features], node label, n_edges, [neighbors]
-                # TODO: only work for categorical node features
+                # * only work for categorical node features
                 node_row = list(
                     map(int, in_file.readline().strip().split(" ")))
 
@@ -102,110 +55,58 @@ def load_data(dataset: str,
                 if n_features != 0:
                     # get all features, column 1 to n_features-1
                     features = node_row[1:n_features + 1]
-                # we need the index of each featur
-                # _features = []
-                for f in features:
-                    if f not in unique_node_features:
-                        # index it
-                        unique_node_features[f] = len(unique_node_features)
-                    # _features.append(node_features[f])
 
-                _nodes_features.append(features)
+                unique_node_features.update(features)
+
+                node_features.append(features)
                 # ---- /FEATURES ----
 
                 # ---- LABELS ----
+                # TODO: support multiple labels
                 node_label = node_row[n_features + 1]
-                if node_label not in unique_node_labels:
-                    unique_node_labels[node_label] = len(unique_node_labels)
-                # append the node label, not the index. This is for
-                # compatibility after when using `degree_as_node_label`
-                _nodes_label.append(node_label)
-                # ---- /LABELS ----
+                unique_node_labels.add(node_label)
 
-                # get the number of neighbors
-                n_neighbors = node_row[n_features + 2]
-                if n_neighbors > max_neighbors:
-                    max_neighbors = n_neighbors
+                node_labels.append(node_label)
+                # ---- /LABELS ----
 
                 # ---- EDGES ----
                 # get the rest, the neighbours
                 neighbors = node_row[n_features + 3:]
                 # register connections
-                # * we are assuming the graph comes well formatted and is an undirected graph
                 for neighbor in neighbors:
                     graph.add_edge(node_id, neighbor)
 
-                neighbor_collection.append(neighbors)
+                    if undirected:
+                        graph.add_edge(neighbor, node_id)
 
                 # ---- /EDGES ----
             # --- /READING GRAPH ----
 
-            # adds the graph structure and the graph label
+            feature_classes = len(unique_node_features)
+            features = torch.tensor(graph.node_features)
+
+            x = torch.nn.functional.one_hot(
+                features.squeeze(), feature_classes)
+            edges = torch.tensor(list(graph.edges), dtype=torch.long)
+            node_labels = torch.tensor(node_labels)
+
             graph_list.append(
-                S2VGraph(
-                    graph=graph,
-                    graph_label=graph_label,
-                    node_features=_nodes_features,
-                    node_labels=_nodes_label,
-                    neighbors=neighbor_collection,
-                    max_neighbor=max_neighbors))
-
-    # add labels and edge_mat
-    # for each of the graphs
-    for graph in graph_list:
-
-        # create edges to make matrix
-        edges = [list(pair) for pair in graph.graph.edges()]
-        # reciprocal
-        edges.extend([[i, j] for j, i in edges])
-
-        # generate the edge mapping with 2 lists.
-        # matrix is (2,2xE),
-        # 2-> node in - node out
-        # 2xE, double the number of edges
-        if edges:
-            graph.edge_mat = torch.LongTensor(edges).transpose(0, 1)
-        else:
-            graph.edge_mat = torch.LongTensor([[], []])
-
-        # * in case the nodes do not have a label (placeholder for format), assign the node degree as label
-        if degree_as_node_label:
-            graph.node_labels = list(dict(graph.graph.degree).values())
-
-    # Extracting unique tag labels
-    if degree_as_node_label:
-        # * used when degree_as_node_label=True, useless otherwise
-        tagset = set()
-        for graph in graph_list:
-            tagset = tagset.union(set(graph.node_features))
-        tagset = list(tagset)
-        # when label=degree it is needed to index value
-        label2index = {tagset[i]: i for i in range(len(tagset))}
-
-        for graph in graph_list:
-            # ? graph.aux_node_label_mapping = label2index
-            indexed_features = []
-            for features in graph.node_features:
-                indexed_features.append([label2index[i] for i in features])
-            graph.node_features = indexed_features
-
-    # creates the node feature matrix
-    for graph in graph_list:
-        # matrix (n_nodes, n_features)
-        feature_classes = len(unique_node_features)
-        features = torch.tensor(graph.node_features)
-        # * 1-hot encoding for each feature
-        # ! only supports 1-hot
-        graph.node_features = torch.nn.functional.one_hot(
-            features, feature_classes).squeeze()
+                Data(
+                    x=x,
+                    edge_index=edges.t().contiguous(),
+                    node_labels=node_labels,
+                    graph_label=graph_label
+                ))
 
     print(f"#Graphs: {len(graph_list)}")
     print(f"#Graphs Labels: {len(unique_graph_label)}")
     print(f"#Node Properties: {len(unique_node_features)}")
     print(f"#Node Labels: {len(unique_node_labels)}")
 
-    return graph_list, (len(unique_graph_label), len(
-        unique_node_features), len(unique_node_labels))
+    return graph_list, \
+        (len(unique_graph_label),
+         len(unique_node_features),
+         len(unique_node_labels))
 
 
 def separate_data(graph_list: List[S2VGraph], seed: int,
