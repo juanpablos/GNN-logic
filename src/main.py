@@ -276,11 +276,20 @@ def main(
     train_loader = DataLoader(
         train_graphs,
         batch_size=args.batch_size,
-        shuffle=True, pin_memory=True)
-    test1_loader = DataLoader(test_graphs1, batch_size=128, pin_memory=True)
-    test2_loader = DataLoader(test_graphs2, batch_size=128, pin_memory=True)
+        shuffle=True,
+        pin_memory=True,
+        num_workers=0)
+    test1_loader = DataLoader(
+        test_graphs1,
+        batch_size=512,
+        pin_memory=True,
+        num_workers=0)
+    test2_loader = DataLoader(
+        test_graphs2,
+        batch_size=512,
+        pin_memory=True,
+        num_workers=0)
 
-    # TODO: remove old code
     if args.network == "acgnn":
         _model = ACGNN
     elif args.network == "acrgnn":
@@ -375,36 +384,20 @@ if __name__ == '__main__':
     # agg, read, comb
     _networks = [
         [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
         [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
-        # # # [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
         [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
-        # # # # [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
 
         [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
-        # # # [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
         [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
-        # # [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
         [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
-        # # # [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
 
         [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
-        # # # [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
         [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
-        # [{"add": "S"}, {"max": "M"}, {"mlp": "MLP"}],
         [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
-        # # [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
-
-        # [{"0": "0"}, {"mean": "A"}, {"simple": "T"}],
-        # # [{"0": "0"}, {"mean": "A"}, {"mlp": "MLP"}],
-        # [{"0": "0"}, {"max": "M"}, {"simple": "T"}],
-        # # [{"0": "0"}, {"max": "M"}, {"mlp": "MLP"}],
-        # [{"0": "0"}, {"add": "S"}, {"simple": "T"}],
-        # # [{"0": "0"}, {"add": "S"}, {"mlp": "MLP"}],
     ]
 
     print("Start running")
-    for _key in ["cycle"]:
+    for _key in ["validation"]:
         for _enum, _set in enumerate([
 
             [("train-random-5000-50-100-1-0.02",
@@ -431,7 +424,6 @@ if __name__ == '__main__':
               "test-line-special-500-50-100",
               "test-line-special-500-100-200"),
              ],
-
         ]):
 
             key = _key
@@ -462,11 +454,11 @@ if __name__ == '__main__':
                     degree_as_node_label=False)
 
                 for _net_class in [
-                    # "acgnn",
-                    # "gin",
+                    "acgnn",
+                    "gin",
                     "acrgnn"
                 ]:
-                    filename = f"logging/{key}-{enum}-{index}.mix"
+                    filename = f"logging/32/{key}-{enum}-{index}.mix"
                     for a, r, c in _networks:
                         (_agg, _agg_abr) = list(a.items())[0]
                         (_read, _read_abr) = list(r.items())[0]
@@ -476,8 +468,6 @@ if __name__ == '__main__':
                                 _read == "max" or _read == "add"):
                             continue
                         elif _net_class == "gin" and _comb == "mlp":
-                            continue
-                        elif (_net_class == "acgnn" or _net_class == "gin") and _agg == "0":
                             continue
 
                         for l in [2, 5]:
@@ -493,13 +483,12 @@ if __name__ == '__main__':
                                     f"--combine={_comb}",
                                     f"--network={_net_class}",
                                     f"--mlp_combine_agg=add",
-                                    f"--filename=logging/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
+                                    f"--filename=logging/32/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
                                     "--epochs=10",
-                                    "--iters_per_epoch=50",
                                     # "--no_test",
-                                    f"--batch_size=128",
+                                    f"--batch_size=32",
                                     "--test_every=1",
-                                    f"--hidden_dim=64",
+                                    f"--hidden_dim=16",
                                     f"--num_layers={l}"
                                 ])
 
