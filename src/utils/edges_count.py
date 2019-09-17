@@ -4,7 +4,7 @@ import numpy as np
 from torch_geometric.utils import to_networkx
 import torch
 
-from util import load_data
+from .util import load_data
 
 graphs, _ = load_data(
     dataset="../data/test-random-500-100-200-15-0.01.txt",

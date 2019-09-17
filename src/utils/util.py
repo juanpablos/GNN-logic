@@ -31,7 +31,7 @@ def load_data(dataset: str,
             # register graph label (not really important)
             unique_graph_label.add(graph_label)
 
-            graph: nx.Graph = nx.Graph()
+            graph: nx.DiGraph = nx.DiGraph()
             node_labels: List[int] = []
             node_features: List[List[int]] = []
 
@@ -93,7 +93,7 @@ def load_data(dataset: str,
                     x=features,
                     edge_index=edges.t().contiguous(),
                     node_labels=node_labels,
-                    graph_label=graph_label
+                    graph_label=torch.tensor([graph_label])
                 ))
 
     num_features = len(unique_node_features)
@@ -125,4 +125,8 @@ def separate_data(graph_list, seed: int,
 
 
 if __name__ == "__main__":
-    load_data(dataset="colors1_labeled.txt")
+    a, _ = load_data(dataset="../data/train-cycle-150-50-150.txt")
+    print(a[0].x)
+    print(a[0].edge_index)
+    print(a[0].node_labels)
+    print(a[0].graph_label)

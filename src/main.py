@@ -1,4 +1,6 @@
-import logging
+
+import os
+import random
 from typing import List
 
 import numpy as np
@@ -13,12 +15,6 @@ from gnn import *
 from utils.argparser import argument_parser
 from utils.graphs import online_generator
 from utils.util import load_data, separate_data
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(message)s",
-    filename="logging/logger.log")
 
 
 def __loss_aux(output, loss, data, binary_prediction):
@@ -219,7 +215,7 @@ def test(
         test2_micro_avg = test2_micro_avg / n_nodes
         test2_macro_avg = test2_macro_avg / n_graphs
 
-        # ----- /TEST 2 ------
+    # ----- /TEST 2 ------
 
     print(
         f"Train accuracy: micro: {train_micro_avg}\tmacro: {train_macro_avg}")
@@ -233,6 +229,18 @@ def test(
         (test2_avg_loss, test2_micro_avg, test2_macro_avg)
 
 
+def seed_everything(seed):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+
 def main(
         args,
         manual,
@@ -244,11 +252,9 @@ def main(
         load_model=None,
         train_model=True):
     # set up seeds and gpu device
-    torch.manual_seed(args.seed)
-    np.random.seed(args.seed)
+    seed_everything(args.seed)
 
     if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(args.seed)
         device = torch.device("cuda:" + str(args.device))
     else:
         device = torch.device("cpu")
@@ -273,6 +279,7 @@ def main(
         else:
             raise NotImplementedError()
 
+    # np.random.shuffle(train_graphs)
     train_loader = DataLoader(
         train_graphs,
         batch_size=args.batch_size,
@@ -385,15 +392,15 @@ if __name__ == '__main__':
     _networks = [
         [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
         [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
-        [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
+        # [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
 
         [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
         [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
-        [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
+        # [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
 
         [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
         [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
-        [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
+        # [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
     ]
 
     print("Start running")
@@ -404,30 +411,30 @@ if __name__ == '__main__':
             #   "test-random-500-50-100-15-0.02",
             #   "test-random-500-100-200-15-0.01"),
             #  ],
-            # [("train-random-5000-50-100-1-0.02",
-            #   "test-random-500-50-100-1-0.02",
-            #   "test-random-500-100-200-1-0.01"),
-            #  ],
-            # [("train-random-5000-50-100-1.2-0.02",
-            #   "test-random-500-50-100-1.2-0.02",
-            #   "test-random-500-100-200-1.2-0.01"),
-            #  ],
-            # [("train-random-5000-50-100-1.5-0.02",
-            #   "test-random-500-50-100-1.5-0.02",
-            #   "test-random-500-100-200-1.5-0.01"),
-            #  ],
+            [("train-random-5000-50-100-1-0.02",
+              "test-random-500-50-100-1-0.02",
+              "test-random-500-100-200-1-0.01"),
+             ],
+            [("train-random-5000-50-100-1.2-0.02",
+              "test-random-500-50-100-1.2-0.02",
+              "test-random-500-100-200-1.2-0.01"),
+             ],
+            [("train-random-5000-50-100-1.5-0.02",
+              "test-random-500-50-100-1.5-0.02",
+              "test-random-500-100-200-1.5-0.01"),
+             ],
             [("train-random-5000-50-100-2-0.02",
               "test-random-500-50-100-2-0.02",
               "test-random-500-100-200-2-0.01"),
              ],
-            # [("train-random-20000-50-100-mix-0.02",
-            #   "test-random-2000-50-100-mix-0.02",
-            #   "test-random-2000-100-200-mix-0.02"),
-            #  ],
-            # [("train-line-special-5000-50-100",
-            #   "test-line-special-500-50-100",
-            #   "test-line-special-500-100-200"),
-            #  ],
+            [("train-random-20000-50-100-mix-0.02",
+              "test-random-2000-50-100-mix-0.02",
+              "test-random-2000-100-200-mix-0.02"),
+             ],
+            [("train-line-special-5000-50-100",
+              "test-line-special-500-50-100",
+              "test-line-special-500-100-200"),
+             ],
         ]):
 
             key = _key
@@ -459,10 +466,10 @@ if __name__ == '__main__':
 
                 for _net_class in [
                     "acgnn",
-                    # "gin",
-                    # "acrgnn"
+                    "gin",
+                    "acrgnn"
                 ]:
-                    filename = f"logging/delete/{key}-{enum}-{index}.mix"
+                    filename = f"logging/32/{key}-{enum}-{index}.mix"
                     for a, r, c in _networks:
                         (_agg, _agg_abr) = list(a.items())[0]
                         (_read, _read_abr) = list(r.items())[0]
@@ -474,11 +481,9 @@ if __name__ == '__main__':
                         elif _net_class == "gin" and _comb == "mlp":
                             continue
 
-                        for l in [5]:
+                        for l in [2, 5]:
 
                             print(a, r, c, _net_class, l)
-                            logging.info(f"{key}-{_net_class}-{_read_abr}")
-                            logging.info(f"{a}, {r}, {c}, {_net_class}")
 
                             _args = argument_parser().parse_args(
                                 [
@@ -487,8 +492,8 @@ if __name__ == '__main__':
                                     f"--combine={_comb}",
                                     f"--network={_net_class}",
                                     f"--mlp_combine_agg=add",
-                                    f"--filename=logging/delete/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
-                                    "--epochs=100",
+                                    f"--filename=logging/32/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
+                                    "--epochs=4",
                                     # "--no_test",
                                     f"--batch_size=32",
                                     "--test_every=1",
