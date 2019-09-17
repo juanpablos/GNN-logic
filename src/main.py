@@ -353,13 +353,7 @@ def main(
                 binary_prediction=True)
 
             (train_micro, train_macro), (test1_loss, test1_micro, test1_macro), (test2_loss, test2_micro, test2_macro) = test(
-                model=model,
-                device=device,
-                train_data=train_loader,
-                test_data1=test1_loader,
-                test_data2=test2_loader,
-                epoch=epoch,
-                criterion=criterion)
+                model=model, device=device, train_data=train_loader, test_data1=test1_loader, test_data2=test2_loader, epoch=epoch, criterion=criterion)
 
             file_line = f"{avg_loss: .10f}, {test1_loss: .10f}, {test2_loss: .10f}, {train_micro: .8f}, {train_macro: .8f}, {test1_micro: .8f}, {test1_macro: .8f}, {test2_micro: .8f}, {test2_macro: .8f}"
 
@@ -392,48 +386,23 @@ if __name__ == '__main__':
     _networks = [
         [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
         [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
+        [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
 
         [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
         [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
-        # [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
+        [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
 
         [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
         [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
-        # [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
+        [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
     ]
 
     print("Start running")
-    for _key in ["validation"]:
+    for _key in ["formula3"]:
         for _enum, _set in enumerate([
-
-            # [("train-random-5000-50-100-15-0.02",
-            #   "test-random-500-50-100-15-0.02",
-            #   "test-random-500-100-200-15-0.01"),
-            #  ],
-            [("train-random-5000-50-100-1-0.02",
-              "test-random-500-50-100-1-0.02",
-              "test-random-500-100-200-1-0.01"),
-             ],
-            [("train-random-5000-50-100-1.2-0.02",
-              "test-random-500-50-100-1.2-0.02",
-              "test-random-500-100-200-1.2-0.01"),
-             ],
-            [("train-random-5000-50-100-1.5-0.02",
-              "test-random-500-50-100-1.5-0.02",
-              "test-random-500-100-200-1.5-0.01"),
-             ],
-            [("train-random-5000-50-100-2-0.02",
-              "test-random-500-50-100-2-0.02",
-              "test-random-500-100-200-2-0.01"),
-             ],
-            [("train-random-20000-50-100-mix-0.02",
-              "test-random-2000-50-100-mix-0.02",
-              "test-random-2000-100-200-mix-0.02"),
-             ],
-            [("train-line-special-5000-50-100",
-              "test-line-special-500-50-100",
-              "test-line-special-500-100-200"),
+            [("formula3/train-random-5000-50-100-3",
+              "formula3/test-random-500-50-100-3",
+              "formula3/test-random-500-100-200-15"),
              ],
         ]):
 
@@ -448,28 +417,32 @@ if __name__ == '__main__':
                 key = "line-special"
                 enum = 0
 
+            if "cycle" in _set[0][0]:
+                key = "cycle"
+                enum = 0
+
             for index, (_train, _test1, _test2) in enumerate(_set):
 
                 print(f"Start for dataset {_train}-{_test1}-{_test2}")
 
                 _train_graphs, (_, _, _n_node_labels) = load_data(
-                    dataset=f"data/exp/{_train}.txt",
+                    dataset=f"data/{_train}.txt",
                     degree_as_node_label=False)
 
                 _test_graphs, _ = load_data(
-                    dataset=f"data/exp/{_test1}.txt",
+                    dataset=f"data/{_test1}.txt",
                     degree_as_node_label=False)
 
                 _test_graphs2, _ = load_data(
-                    dataset=f"data/exp/{_test2}.txt",
+                    dataset=f"data/{_test2}.txt",
                     degree_as_node_label=False)
 
                 for _net_class in [
-                    "acgnn",
-                    "gin",
+                    # "acgnn",
+                    # "gin",
                     "acrgnn"
                 ]:
-                    filename = f"logging/32/{key}-{enum}-{index}.mix"
+                    filename = f"logging/formula3/{key}-{enum}-{index}.mix"
                     for a, r, c in _networks:
                         (_agg, _agg_abr) = list(a.items())[0]
                         (_read, _read_abr) = list(r.items())[0]
@@ -492,8 +465,8 @@ if __name__ == '__main__':
                                     f"--combine={_comb}",
                                     f"--network={_net_class}",
                                     f"--mlp_combine_agg=add",
-                                    f"--filename=logging/32/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
-                                    "--epochs=4",
+                                    f"--filename=logging/formula3/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
+                                    "--epochs=50",
                                     # "--no_test",
                                     f"--batch_size=32",
                                     "--test_every=1",

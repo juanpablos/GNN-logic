@@ -1,11 +1,12 @@
 import random
+from functools import partial
+from itertools import cycle
 from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
 import networkx as nx
 import numpy as np
 
-from itertools import cycle
-# TODO: Refactor
+# TODO: Urgent Refactor
 
 
 def __generate_empty_graph(n_nodes: int, ** kwargs) -> nx.Graph:
@@ -542,9 +543,8 @@ def generator(graph_distribution: List[float],
 
 
 def __tagging_logic(graph, formula):
-    node_colors = [node[1] for node in graph.nodes(data="color")]
 
-    labels, graph_label = formula(node_colors)
+    labels, graph_label = formula(graph)
 
     graph.graph["label"] = graph_label
 
@@ -555,7 +555,7 @@ def __tagging_logic(graph, formula):
 
 
 def tagger(input_file: str,
-           formula: Callable[[List[int]],
+           formula: Callable[[List[nx.Graph]],
                              Tuple[List[bool],
                                    int]]) -> Generator[Union[int,
                                                              nx.Graph],
@@ -597,10 +597,14 @@ def tagger(input_file: str,
     print(f"{total_property}/{n_graphs} graphs were tagged 1 ({total_property/n_graphs})")
 
 
-def __red_exist_green(node_features: List[int]) -> Tuple[List[bool], int]:
+def __red_exist_green(graph: nx.Graph, n_green=1,
+                      **kwargs) -> Tuple[List[bool], int]:
+
+    node_features = [node[1] for node in graph.nodes(data="color")]
+
     features = np.array(node_features)
     # green
-    existence_condition = np.any(features == 0)
+    existence_condition = np.sum(features == 0) >= n_green
     if existence_condition:
         # red
         individual_condition = (features == 1).astype(int)
@@ -610,23 +614,96 @@ def __red_exist_green(node_features: List[int]) -> Tuple[List[bool], int]:
     return np.zeros(features.shape[0]).astype(int), 0
 
 
-def __green_50_red(node_features: List[int]) -> Tuple[List[bool], int]:
-    features = np.array(node_features)
-    # green
-    existence_condition = np.sum(features == 1) >= 50
-    if existence_condition:
-        # red
-        individual_condition = (features == 0).astype(int)
-        # return if each node is a red node or not
-        return individual_condition, 1
-    # no existance condition -> all nodes are 0
-    return np.zeros(features.shape[0]).astype(int), 0
+def __map_colors(graph, nodes):
+    colors = {}
+    for node in nodes:
+        color = graph.node[node]['color']
+        if color not in colors:
+            colors.setdefault(color, 0)
+
+        colors[color] += 1
+
+    return colors
 
 
-def tagger_dispatch(tagger):
+def __color_no_connected_green(graph: nx.Graph,
+                               local_prop=None,
+                               global_prop=None,
+                               global_constraint=None,
+                               condition="and",
+                               **kwargs) -> Tuple[List[bool],
+                                                  int]:
+
+    if condition  == "and":
+        condition = all
+    elif condition == "or":
+        condition = any
+    else:
+        raise ValueError()
+
+    if local_prop is None:
+        # i am red
+        local_prop = [1]
+
+    if global_prop is None:
+        # searching for green
+        global_prop = [0]
+
+    if global_constraint is None:
+        global_constraint = {}
+
+    for color in global_prop:
+        if color not in global_constraint:
+            global_constraint[color] = 1
+
+    # count graph colors
+    graph_colors = __map_colors(graph, graph)
+    for cons in global_constraint:
+        if cons not in graph_colors:
+            graph_colors[cons] = 0
+
+    labels = []
+    for node in graph:
+
+        # if the node is of the local property color
+        if graph.node[node]['color'] in local_prop:
+            neighbor_features = [graph.node[node]['color']
+                                 for neighbor in graph.neighbors(node)]
+
+            # color count of my neighbors
+            neighbor_color_map = __map_colors(graph, neighbor_features)
+
+            # colors left in graph that are not my neighbors
+            left_in_graph = {}
+            for color, count in graph_colors.items():
+                neighbor_color_count = neighbor_color_map.get(color, 0)
+
+                left_in_graph[color] = count - neighbor_color_count
+
+            # check if there are N_i nodes with color i in the graph
+            # that are not my neighbors
+            # if the number of nodes for each color is bigger than what
+            # we need, the node satisfies the property
+            # depends on the condition - AND or OR
+            satisfies = condition(
+                [left_in_graph[color] >= count_const for color, count_const in global_constraint.items()])
+
+            if satisfies:
+                labels.append(1)
+            else:
+                labels.append(0)
+
+        else:
+            labels.append(0)
+
+    return np.array(labels).astype(int), int(any(l > 0 for l in labels))
+
+
+def tagger_dispatch(tagger, **kwargs):
     options = {
-        "red_exist_green": __red_exist_green,
-        "green_50_red": __green_50_red
+        "formula1": partial(__red_exist_green, **kwargs),
+        "formula2": partial(__red_exist_green, **kwargs),
+        "formula3": partial(__color_no_connected_green, **kwargs),
     }
     if tagger not in options:
         raise ValueError()
@@ -705,33 +782,38 @@ def train_dataset(
 
     # 1/2 of the graphs do not have green
     # the other 1/2 have at least force_color[0] greens
-    graph_distribution = [0.5, 0.5]
+    # graph_distribution = [0.5, 0.5]
+    graph_distribution = [0, 0.5]
 
     # on the second graph split, force 1 green (0) in each graph
     #force_color = {0: 1, 1: 1}
-    force_color = {0: 1}
+    # force_color = {0: 1}
+    force_color = {}
     #force_pos = {0: 0, 1: -1}
     force_pos = None
 
-    # 1/2 red (1), 0.5/4 the others
-    red_prob = 0.5
-    #red_prob = 1. / n_colors
+    # # 1/2 red (1), 0.5/4 the others
+    # red_prob = 0.5
+    # #red_prob = 1. / n_colors
 
-    green_prob = 0
-    #green_prob = 1. / n_colors
-    others = (1. - red_prob - green_prob) / (n_colors - 2)
-    node_distribution_1 = [red_prob] + [others] * (n_colors - 2)
+    # green_prob = 0
+    # #green_prob = 1. / n_colors
+    # others = (1. - red_prob - green_prob) / (n_colors - 2)
+    # node_distribution_1 = [red_prob] + [others] * (n_colors - 2)
 
-    #red_prob = 0.9
-    if not no_green:
-        green_prob = (1. - red_prob) / (n_colors - 1)
+    # #red_prob = 0.9
+    # if not no_green:
+    #     green_prob = (1. - red_prob) / (n_colors - 1)
 
-    if force_green is not None:
-        green_prob = (force_green - 1) / float(n_max)
+    # if force_green is not None:
+    #     green_prob = (force_green - 1) / float(n_max)
 
-    others = (1. - red_prob - green_prob) / (n_colors - 2)
-    node_distribution_2 = [green_prob,
-                           red_prob] + [others] * (n_colors - 2)
+    # others = (1. - red_prob - green_prob) / (n_colors - 2)
+    # node_distribution_2 = [green_prob,
+    #                        red_prob] + [others] * (n_colors - 2)
+
+    node_distribution_1=[]
+    node_distribution_2=[1./n_colors]*n_colors
 
     graph_generator = generator(
         graph_distribution=graph_distribution,
@@ -755,12 +837,12 @@ def train_dataset(
 
     label_generator = tagger(
         input_file=f"temp{i}.txt",
-        formula=tagger_dispatch(tagger_fn))
+        formula=tagger_dispatch(tagger_fn, **kwargs))
 
     if "cycle" in name:
-        filename = f"../data/train-{name}-{number_of_graphs}-{n_min}-{n_max}.txt"
+        filename = f"../data/{tagger_fn}/train-{name}-{number_of_graphs}-{n_min}-{n_max}.txt"
     else:
-        filename = f"../data/train-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}-{green_prob}.txt"
+        filename = f"../data/{tagger_fn}/train-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}.txt"
 
     write_graphs(
         label_generator,
@@ -787,33 +869,38 @@ def test_dataset(
 
     # 1/2 of the graphs do not have green
     # the other 1/2 have at least force_color[0] greens
-    graph_distribution = [0.5, 0.5]
+    # graph_distribution = [0.5, 0.5]
+    graph_distribution = [0, 0.5]
 
     # on the second graph split, force 1 green (0) in each graph
     #force_color = {0: 1, 1: 1}
-    force_color = {0: 1}
+    # force_color = {0: 1}
+    force_color = {}
     #force_pos = {0: 0, 1: -1}
     force_pos = None
 
-    # 1/2 red (1), 0.5/4 the others
-    red_prob = 0.5
-    #red_prob = 1. / n_colors
+    # # 1/2 red (1), 0.5/4 the others
+    # red_prob = 0.5
+    # #red_prob = 1. / n_colors
 
-    green_prob = 0
-    #green_prob = 1. / n_colors
-    others = (1. - red_prob - green_prob) / (n_colors - 2)
-    node_distribution_1 = [red_prob] + [others] * (n_colors - 2)
+    # green_prob = 0
+    # #green_prob = 1. / n_colors
+    # others = (1. - red_prob - green_prob) / (n_colors - 2)
+    # node_distribution_1 = [red_prob] + [others] * (n_colors - 2)
 
-    #red_prob = 0.7
-    if not no_green:
-        green_prob = (1. - red_prob) / (n_colors - 1)
+    # #red_prob = 0.9
+    # if not no_green:
+    #     green_prob = (1. - red_prob) / (n_colors - 1)
 
-    if force_green is not None:
-        green_prob = (force_green - 1) / float(n_max)
+    # if force_green is not None:
+    #     green_prob = (force_green - 1) / float(n_max)
 
-    others = (1. - red_prob - green_prob) / (n_colors - 2)
-    node_distribution_2 = [green_prob,
-                           red_prob] + [others] * (n_colors - 2)
+    # others = (1. - red_prob - green_prob) / (n_colors - 2)
+    # node_distribution_2 = [green_prob,
+    #                        red_prob] + [others] * (n_colors - 2)
+
+    node_distribution_1 = []
+    node_distribution_2 = [1. / n_colors] * n_colors
 
     graph_generator = generator(
         graph_distribution=graph_distribution,
@@ -837,13 +924,12 @@ def test_dataset(
 
     label_generator = tagger(
         input_file=f"temp{i}.txt",
-        formula=tagger_dispatch(tagger_fn))
+        formula=tagger_dispatch(tagger_fn, **kwargs))
 
     if "cycle" in name:
-        filename = f"../data/test-{name}-{number_of_graphs}-{n_min}-{n_max}.txt"
+        filename = f"../data/{tagger_fn}/test-{name}-{number_of_graphs}-{n_min}-{n_max}.txt"
     else:
-        filename = f"../data/test-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}-{green_prob}.txt"
-
+        filename = f"../data/{tagger_fn}/test-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}.txt"
 
     write_graphs(
         label_generator,
@@ -854,55 +940,23 @@ def test_dataset(
 
 if __name__ == "__main__":
     # TODO: implement manual limit to number of nodes with each color
+    """
+    formula1 -> x in G, red(x) and exist y in G, such that green(y)
+
+    formula2 -> x in G, green(x) and exist^50 y_i in G, such that red(y_i)
+    formula3 -> x in G, red(x) and exist y in G, such that green(y) and edge(x,y)
+    """
 
     # if int -> indices
     #_split_line = {"split": [10]}
     _split_line = None
-    _tagger_fn = "red_exist_green"
+    _tagger_fn = "formula3"
     _data_name = "random"
-    _prop = 15
+    _prop =3
 
     # only_extreme=True|False
 
     train_dataset(
-        name=_data_name,
-        tagger_fn=_tagger_fn,
-        seed=None,
-        n_colors=5,
-        number_of_graphs=5000,
-        n_min=50,
-        n_max=100,
-        random_degrees=True,
-        min_degree=0,
-        max_degree=2,
-        no_green=False,
-        special_line=True,
-        edges=0.025,
-        split_line=_split_line,
-        force_proportion=_prop,
-        force_green=3,
-        two_color=True)
-
-    test_dataset(
-        name=_data_name,
-        tagger_fn=_tagger_fn,
-        seed=None,
-        n_colors=5,
-        number_of_graphs=500,
-        n_min=50,
-        n_max=100,
-        random_degrees=True,
-        min_degree=0,
-        max_degree=2,
-        no_green=False,
-        special_line=True,
-        edges=0.025,
-        split_line=_split_line,
-        force_proportion=_prop,
-        force_green=3,
-        two_color=True)
-
-    test_dataset(
         name=_data_name,
         tagger_fn=_tagger_fn,
         seed=None,
@@ -912,11 +966,73 @@ if __name__ == "__main__":
         n_max=200,
         random_degrees=True,
         min_degree=0,
-        max_degree=_prop,
+        max_degree=2,
         no_green=False,
         special_line=True,
         edges=0.025,
         split_line=_split_line,
         force_proportion=_prop,
         force_green=3,
-        two_color=True)
+        two_color=True,
+        # tagger
+        # formula 1
+        n_green=1,
+        # formula 3
+        local_prop=[1,2],
+        global_prop=[0],
+        global_constraint={0: 10, 3:10},
+        condition="and")
+
+    # test_dataset(
+    #     name=_data_name,
+    #     tagger_fn=_tagger_fn,
+    #     seed=None,
+    #     n_colors=5,
+    #     number_of_graphs=500,
+    #     n_min=50,
+    #     n_max=100,
+    #     random_degrees=True,
+    #     min_degree=0,
+    #     max_degree=2,
+    #     no_green=False,
+    #     special_line=True,
+    #     edges=0.025,
+    #     split_line=_split_line,
+    #     force_proportion=_prop,
+    #     force_green=3,
+    #     two_color=True,
+    #     # tagger
+    #     # formula 1
+    #     n_green=1,
+    #     # formula 3
+    #     local_prop=[1],
+    #     global_prop=[0],
+    #     global_constraint={0: 1},
+    #     condition="or")
+
+    # test_dataset(
+    #     name=_data_name,
+    #     tagger_fn=_tagger_fn,
+    #     seed=None,
+    #     n_colors=5,
+    #     number_of_graphs=500,
+    #     n_min=100,
+    #     n_max=200,
+    #     random_degrees=True,
+    #     min_degree=0,
+    #     max_degree=_prop,
+    #     no_green=False,
+    #     special_line=True,
+    #     edges=0.025,
+    #     split_line=_split_line,
+    #     force_proportion=_prop,
+    #     force_green=3,
+    #     two_color=True,
+    #     # tagger
+    #     # formula 1
+    #     n_green=1,
+    #     # formula 3
+    #     local_prop=[1],
+    #     global_prop=[0],
+    #     global_constraint={0: 1},
+    #     condition="or")
