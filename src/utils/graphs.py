@@ -62,15 +62,25 @@ def __generate_line_graph(n_nodes: int, **kwargs) -> nx.Graph:
 def __generate_random_graph(
         n_nodes: int,
         p: float,
+        m: int,
         seed: int,
-        force_proportion=None,
+        name="erdos",
         **kwargs) -> nx.Graph:
 
-    if force_proportion is not None:
-        return nx.gnm_random_graph(
-            n_nodes, n_nodes * force_proportion, seed=seed)
+    assert name in ["erdos", "barabasi"]
 
-    return nx.fast_gnp_random_graph(n=n_nodes, p=p, seed=seed)
+    if name is None:
+        name = "erdos"
+
+    if name == "erdos":
+
+        if m is not None:
+            return nx.gnm_random_graph(n=n_nodes, m=n_nodes * m, seed=seed)
+
+        return nx.fast_gnp_random_graph(n=n_nodes, p=p, seed=seed)
+
+    else:
+        return nx.barabasi_albert_graph(n=n_nodes, m=m, seed=seed)
 
 
 def __generate_cycle_graph(n_nodes: int, **kwargs):
@@ -87,6 +97,7 @@ def __generate_graph(n_graphs: int,
                      max_nodes: int,
                      random_state: int = 0,
                      variable_degree: bool = False,
+                     random_name=None,
                      **kwargs) -> Generator[nx.Graph, None, None]:
 
     fn = None
@@ -101,7 +112,7 @@ def __generate_graph(n_graphs: int,
         fn = __generate_line_graph
 
     elif generator_fn == "random":
-        fn = __generate_random_graph
+        fn = partial(__generate_random_graph, name=random_name)
 
     elif generator_fn == "cycle":
         # TODO: generate only unique cycles?
@@ -634,7 +645,7 @@ def __color_no_connected_green(graph: nx.Graph,
                                **kwargs) -> Tuple[List[bool],
                                                   int]:
 
-    if condition  == "and":
+    if condition == "and":
         condition = all
     elif condition == "or":
         condition = any
@@ -812,8 +823,8 @@ def train_dataset(
     # node_distribution_2 = [green_prob,
     #                        red_prob] + [others] * (n_colors - 2)
 
-    node_distribution_1=[]
-    node_distribution_2=[1./n_colors]*n_colors
+    node_distribution_1 = []
+    node_distribution_2 = [1. / n_colors] * n_colors
 
     graph_generator = generator(
         graph_distribution=graph_distribution,
@@ -842,7 +853,7 @@ def train_dataset(
     if "cycle" in name:
         filename = f"../data/{tagger_fn}/train-{name}-{number_of_graphs}-{n_min}-{n_max}.txt"
     else:
-        filename = f"../data/{tagger_fn}/train-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}.txt"
+        filename = f"../data/{tagger_fn}/train-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['m']}.txt"
 
     write_graphs(
         label_generator,
@@ -929,7 +940,7 @@ def test_dataset(
     if "cycle" in name:
         filename = f"../data/{tagger_fn}/test-{name}-{number_of_graphs}-{n_min}-{n_max}.txt"
     else:
-        filename = f"../data/{tagger_fn}/test-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['force_proportion']}.txt"
+        filename = f"../data/{tagger_fn}/test-{name}-{number_of_graphs}-{n_min}-{n_max}-{kwargs['m']}.txt"
 
     write_graphs(
         label_generator,
@@ -951,19 +962,21 @@ if __name__ == "__main__":
     #_split_line = {"split": [10]}
     _split_line = None
     _tagger_fn = "formula3"
-    _data_name = "random"
-    _prop =3
+    _name = "barabasi"
+    _data_name = f"random-{_name}"
+    _m = 1
 
     # only_extreme=True|False
 
     train_dataset(
         name=_data_name,
+        random_name=_name,
         tagger_fn=_tagger_fn,
         seed=None,
         n_colors=5,
-        number_of_graphs=5000,
-        n_min=75,
-        n_max=75,
+        number_of_graphs=100,
+        n_min=50,
+        n_max=100,
         random_degrees=True,
         min_degree=0,
         max_degree=2,
@@ -971,16 +984,16 @@ if __name__ == "__main__":
         special_line=True,
         edges=0.025,
         split_line=_split_line,
-        force_proportion=_prop,
+        m=_m,
         force_green=3,
         two_color=True,
         # tagger
         # formula 1
         n_green=1,
         # formula 3
-        local_prop=[1,2],
+        local_prop=[1],
         global_prop=[0],
-        global_constraint={0: 10, 3:10},
+        global_constraint={0: 10},
         condition="and")
 
     # test_dataset(
@@ -998,7 +1011,7 @@ if __name__ == "__main__":
     #     special_line=True,
     #     edges=0.025,
     #     split_line=_split_line,
-    #     force_proportion=_prop,
+    #     m=_m,
     #     force_green=3,
     #     two_color=True,
     #     # tagger
@@ -1025,7 +1038,7 @@ if __name__ == "__main__":
     #     special_line=True,
     #     edges=0.025,
     #     split_line=_split_line,
-    #     force_proportion=_prop,
+    #     m=_m,
     #     force_green=3,
     #     two_color=True,
     #     # tagger
