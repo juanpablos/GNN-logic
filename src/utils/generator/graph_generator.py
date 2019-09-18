@@ -1,7 +1,7 @@
 import random
 from functools import partial
-from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
-
+from typing import Callable, Dict, Generator, List, Optional, Tuple, Union, Any
+import itertools
 import networkx as nx
 import numpy as np
 
@@ -93,9 +93,49 @@ def __generate_cycle_graph(n_nodes: int, pair=True, **kwargs):
     return nx.cycle_graph(n=nodes_in_graph)
 
 
+def __generate_star_graph(n_nodes=None, **kwargs):
+    return nx.star_graph(n_nodes)
+
+
+def __create_centroids(gen_fun,
+                       centroids: Tuple[int, int],
+                       nodes_per_centroid: Tuple[int, int],
+                       centroid_connectivity: float,
+                       centroid_extra: Dict[str, Any] = None,
+                       n_nodes=None,
+                       **kwargs):
+
+    if centroid_extra:
+        raise NotImplementedError()
+
+    graphs = [nx.null_graph()]
+    n_centroids = random.randint(*centroids)
+    for _ in range(n_centroids):
+        n_nodes_centroid = random.randint(*nodes_per_centroid)
+        graphs.append(gen_fun(n_nodes_centroid, **kwargs))
+
+    graph = nx.union_all(
+        graphs,
+        rename=map(
+            lambda i: str(i) +
+            "-",
+            range(
+                len(graphs))))
+
+    central_nodes = filter(lambda name: name.split("-")[1] == "0", graph)
+    centroid_edges = itertools.combinations(central_nodes, 2)
+
+    for node_1, node_2 in centroid_edges:
+        if random.random() < centroid_connectivity:
+            graph.add_edge(node_1, node_2)
+
+    return graph
+
+
 def graph_generator(generator_fn: str,
                     min_nodes: int,
                     max_nodes: int,
+                    create_centroids: bool = False,
                     **kwargs) -> Generator[nx.Graph, None, None]:
 
     fn = None
@@ -113,8 +153,14 @@ def graph_generator(generator_fn: str,
 
     elif generator_fn == "cycle":
         fn = __generate_cycle_graph
+
+    elif generator_fn == "star":
+        fn = __generate_star_graph
     else:
         raise ValueError()
+
+    if create_centroids:
+        fn = partial(__create_centroids, gen_fun=fn)
 
     print("Start generating graphs")
 

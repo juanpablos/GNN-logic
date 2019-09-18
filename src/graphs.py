@@ -65,8 +65,7 @@ def write_graphs(number_graphs: int,
 def generate_dataset(filename,
                      number_graphs,
                      generator_fn,
-                     min_nodes,
-                     max_nodes,
+                     n_nodes,
                      structure_fn,
                      formula,
                      seed=None,
@@ -127,6 +126,8 @@ def generate_dataset(filename,
     np.random.seed(seed)
     kwargs["seed"] = seed
 
+    min_nodes, max_nodes = n_nodes
+
     tagger = Tagger(formula, **kwargs)
     generator = graph_generator(generator_fn=generator_fn,
                                 min_nodes=min_nodes,
@@ -165,28 +166,32 @@ if __name__ == "__main__":
 
     _tagger_fn = "formula3"
     _name = "barabasi"
-    _data_name = f"random-{_name}"
+    _data_name = f"centroid-{_name}"
     _m = 1
 
     generate_dataset(f"train-{_data_name}",
-                     number_graphs=10000,
+                     number_graphs=100,
                      generator_fn=_data_name.split("-")[0],
-                     min_nodes=50,
-                     max_nodes=100,
-                     structure_fn="normal",
+                     n_nodes=(50, 100),
+                     structure_fn="centroid",
                      formula=_tagger_fn,
                      seed=None,
                      number_colors=5,
                      # random
                      name=_name,
                      m=_m,
+                     # centroid
+                     centroids=(5, 10),
+                     nodes_per_centroid=(5, 10),
+                     centroid_connectivity=0.5,
+                     centroid_extra=None,  # {},
                      # tagger
                      # formula 1
                      n_green=1,
                      # formula 3
                      local_prop=[1],
                      global_prop=[0],
-                     global_constraint={0: 10},
+                     global_constraint={0: 100},
                      condition="and")
 
     # test_dataset(

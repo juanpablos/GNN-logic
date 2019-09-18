@@ -77,11 +77,9 @@ def __color_no_connected_color(graph: nx.Graph,
 
         # if the node is of the local property color
         if graph.node[node]['color'] in local_prop:
-            neighbor_features = [graph.node[node]['color']
-                                 for neighbor in graph.neighbors(node)]
 
             # color count of my neighbors
-            neighbor_color_map = __map_colors(graph, neighbor_features)
+            neighbor_color_map = __map_colors(graph, graph.neighbors(node))
 
             # colors left in graph that are not my neighbors
             left_in_graph = {}
@@ -123,8 +121,8 @@ class Tagger():
         labels, graph_label = formula(graph)
         graph.graph["label"] = graph_label
 
-        for node_id in graph:
-            graph.node[node_id]["label"] = labels[node_id]
+        for node_id, node_name in enumerate(graph):
+            graph.node[node_name]["label"] = labels[node_id]
 
         return graph, graph_label, len(labels), sum(labels)
 
