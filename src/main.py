@@ -2,6 +2,7 @@
 import os
 import random
 from typing import List
+import matplotlib.pyplot as plt
 
 import numpy as np
 import torch
@@ -37,7 +38,7 @@ def train(
         binary_prediction=True) -> float:
     model.train()
 
-    loss_accum = 0.
+    loss_accum = []
 
     for data in tqdm(training_data):
         data = data.to(device)
@@ -55,15 +56,15 @@ def train(
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        scheduler.step()
+        # scheduler.step()
 
-        loss_accum += loss.detach().cpu().numpy()
+        loss_accum.append(loss.detach().cpu().numpy())
 
-    average_loss = loss_accum / len(training_data)
+    average_loss = np.mean(loss_accum)
 
     print(f"Train loss: {average_loss}")
 
-    return average_loss
+    return average_loss, loss_accum
 
 
 def __accuracy_aux(node_labels, predicted_labels, batch, device):
@@ -130,6 +131,7 @@ def test(
     # ----- TEST 1 ------
     test1_micro_avg = 0.
     test1_macro_avg = 0.
+    test1_loss = []
     test1_avg_loss = 0.
 
     if test_data1 is not None:
@@ -150,7 +152,7 @@ def test(
                 data=data,
                 binary_prediction=binary_prediction)
 
-            test1_avg_loss += loss.detach().cpu().numpy()
+            test1_loss.append(loss.detach().cpu().numpy())
 
             output = torch.sigmoid(output)
             _, predicted_labels = output.max(dim=1)
@@ -165,7 +167,7 @@ def test(
             n_nodes += data.num_nodes
             n_graphs += data.num_graphs
 
-        test1_avg_loss = test1_avg_loss / len(test_data1)
+        test1_avg_loss = np.mean(test1_loss)
 
         test1_micro_avg = test1_micro_avg / n_nodes
         test1_macro_avg = test1_macro_avg / n_graphs
@@ -175,6 +177,7 @@ def test(
     # ----- TEST 2 ------
     test2_micro_avg = 0.
     test2_macro_avg = 0.
+    test2_loss = []
     test2_avg_loss = 0.
 
     if test_data2 is not None:
@@ -195,7 +198,7 @@ def test(
                 data=data,
                 binary_prediction=binary_prediction)
 
-            test2_avg_loss += loss.detach().cpu().numpy()
+            test2_loss.append(loss.detach().cpu().numpy())
 
             output = torch.sigmoid(output)
             _, predicted_labels = output.max(dim=1)
@@ -210,7 +213,7 @@ def test(
             n_nodes += data.num_nodes
             n_graphs += data.num_graphs
 
-        test2_avg_loss = test2_avg_loss / len(test_data2)
+        test2_avg_loss = np.mean(test2_loss)
 
         test2_micro_avg = test2_micro_avg / n_nodes
         test2_macro_avg = test2_macro_avg / n_graphs
@@ -250,7 +253,8 @@ def main(
         n_classes=None,
         save_model=None,
         load_model=None,
-        train_model=True):
+        train_model=True,
+        plot=None):
     # set up seeds and gpu device
     seed_everything(args.seed)
 
@@ -329,12 +333,20 @@ def main(
 
     criterion = nn.BCEWithLogitsLoss(reduction='mean')
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
+    # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
+    scheduler = None
 
     if not args.filename == "":
         with open(args.filename, 'w') as f:
             f.write(
                 "train_loss,test1_loss,test2_loss,train_micro,train_macro,test1_micro,test1_macro,test2_micro,test2_macro\n")
+
+            with open(args.filename + ".train", 'w') as f:
+                f.write(
+                    "train_loss\n")
+            with open(args.filename + ".test", 'w') as f:
+                f.write(
+                    "test1_loss,test2_loss\n")
 
     if train_model:
         # `epoch` is only for printing purposes
@@ -343,7 +355,7 @@ def main(
             print(f"Epoch {epoch}/{args.epochs}")
 
             # TODO: binary prediction
-            avg_loss = train(
+            avg_loss, loss_iter = train(
                 model=model,
                 device=device,
                 training_data=train_loader,
@@ -361,8 +373,56 @@ def main(
                 with open(args.filename, 'a') as f:
                     f.write(file_line + "\n")
 
+            if not args.filename == "":
+                with open(args.filename + ".train", 'a') as f:
+                    for l in loss_iter:
+                        f.write(f"{l: .15f}\n")
+
+                with open(args.filename + ".test", 'a') as f:
+                    f.write(f"{test1_loss: .15f}, {test2_loss: .15f}\n")
+
         if save_model is not None:
             torch.save(model.state_dict(), save_model)
+
+        if plot is not None:
+            iter_losses = np.loadtxt(args.filename + ".train", skiprows=1)
+            epoch_t1_losses, epoch_t2_losses = np.loadtxt(
+                args.filename + ".test", delimiter=",", skiprows=1).T
+
+            iters = np.arange(len(iter_losses))
+
+            batch = (len(iter_losses) / len(epoch_t1_losses))
+            epochs = np.arange(len(epoch_t1_losses)) * batch + batch
+
+            plt.figure(figsize=(16, 10))
+            plt.plot(
+                iters,
+                iter_losses,
+                color="#377eb8",
+                marker="*",
+                linestyle="-",
+                label="Train")
+            plt.plot(
+                epochs,
+                epoch_t1_losses,
+                color="#ff7f00",
+                marker="o",
+                linestyle="-",
+                label="Test1")
+            plt.plot(
+                epochs,
+                epoch_t2_losses,
+                color="#4daf4a",
+                marker="x",
+                linestyle="-",
+                label="Tets2")
+
+            plt.title(
+                f"{plot.split('/')[-1].split('.')[0]} - H{args.hidden_dim} - B{args.batch_size} - L{args.num_layers} - Epochs{args.epochs}")
+
+            plt.ylim(bottom=0)
+            plt.legend(loc='upper right')
+            plt.savefig(plot, dpi=150, bbox_inches='tight')
 
         return file_line + ","
 
@@ -384,9 +444,9 @@ if __name__ == '__main__':
 
     # agg, read, comb
     _networks = [
-        [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
-        [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
-        [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
+        # [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
+        # [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
+        [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
 
         [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
         [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
@@ -400,7 +460,7 @@ if __name__ == '__main__':
     print("Start running")
     for _key in ["formula3"]:
         for _enum, _set in enumerate([
-            [("formula3/train-random-5000-50-100-3",
+            [("formula3/train-random-5000-75-75-3",
               "formula3/test-random-500-50-100-3",
               "formula3/test-random-500-100-200-15"),
              ],
@@ -442,6 +502,7 @@ if __name__ == '__main__':
                     # "gin",
                     "acrgnn"
                 ]:
+
                     filename = f"logging/formula3/{key}-{enum}-{index}.mix"
                     for a, r, c in _networks:
                         (_agg, _agg_abr) = list(a.items())[0]
@@ -458,6 +519,7 @@ if __name__ == '__main__':
 
                             print(a, r, c, _net_class, l)
 
+                            run_filename = f"formula3/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}"
                             _args = argument_parser().parse_args(
                                 [
                                     f"--readout={_read}",
@@ -465,12 +527,12 @@ if __name__ == '__main__':
                                     f"--combine={_comb}",
                                     f"--network={_net_class}",
                                     f"--mlp_combine_agg=add",
-                                    f"--filename=logging/formula3/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log",
+                                    f"--filename=logging/{run_filename}.log",
                                     "--epochs=50",
                                     # "--no_test",
-                                    f"--batch_size=32",
+                                    f"--batch_size=128",
                                     "--test_every=1",
-                                    f"--hidden_dim=16",
+                                    f"--hidden_dim=64",
                                     f"--num_layers={l}"
                                 ])
 
@@ -483,7 +545,8 @@ if __name__ == '__main__':
                                 n_classes=_n_node_labels,
                                 # save_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
                                 train_model=True,
-                                # load_model=f"saved_models/h32/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth"
+                                # load_model=f"saved_models/h32/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
+                                plot=f"plots/{run_filename}.png"
                             )
 
                             # append results per layer

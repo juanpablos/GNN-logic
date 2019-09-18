@@ -1,6 +1,8 @@
 import torch.nn as nn
+import torch
 import torch_geometric.nn as geom_nn
 from torch_geometric.nn.conv import MessagePassing
+from .mlp import MLP
 
 
 class ACRConv(MessagePassing):
@@ -18,14 +20,32 @@ class ACRConv(MessagePassing):
         assert combine_type in ["simple", "mlp"]
         assert readout_type in ["add", "mean", "max"]
 
-        if combine_type == "mlp":
-            raise NotImplementedError()
-
         super(ACRConv, self).__init__(aggr=aggregate_type, **kwargs)
 
-        self.V = nn.Linear(input_dim, output_dim)
-        self.A = nn.Linear(input_dim, output_dim)
-        self.R = nn.Linear(input_dim, output_dim)
+        if combine_type == "mlp":
+            self.mlp1 = MLP(
+                num_layers=num_mlp_layers,
+                input_dim=output_dim,
+                hidden_dim=output_dim,
+                output_dim=output_dim)
+            self.mlp2 = MLP(
+                num_layers=num_mlp_layers,
+                input_dim=output_dim,
+                hidden_dim=output_dim,
+                output_dim=output_dim)
+            self.mlp3 = MLP(
+                num_layers=num_mlp_layers,
+                input_dim=output_dim,
+                hidden_dim=output_dim,
+                output_dim=output_dim)
+
+            self.combine = self.__combine_mlp
+        else:
+            self.V = nn.Linear(input_dim, output_dim)
+            self.A = nn.Linear(input_dim, output_dim)
+            self.R = nn.Linear(input_dim, output_dim)
+
+            self.combine = self.__combine_simple
 
         self.readout = self.__get_readout_fn(readout_type)
 
@@ -54,8 +74,14 @@ class ACRConv(MessagePassing):
     def message(self, h_j):
         return h_j
 
-    def update(self, aggr, h, readout):
+    def __combine_mlp(self, aggr, h, readout):
+        return self.mlp1(h) + self.mlp2(aggr) + self.mlp3(readout)
+
+    def __combine_simple(self, aggr, h, readout):
         return self.V(h) + self.A(aggr) + self.R(readout)
+
+    def update(self, aggr, h, readout):
+        return self.combine(aggr=aggr, h=h, readout=readout)
 
 
 class ACConv(MessagePassing):
