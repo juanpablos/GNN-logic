@@ -453,6 +453,19 @@ if __name__ == '__main__':
         [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
         [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
         [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
+
+
+        [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
+
+        [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
+
+        [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"add": "S"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
     ]
 
     print("Start running")

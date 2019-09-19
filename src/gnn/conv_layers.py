@@ -97,13 +97,26 @@ class ACConv(MessagePassing):
         assert aggregate_type in ["add", "mean", "max"]
         assert combine_type in ["simple", "mlp"]
 
-        if combine_type == "mlp":
-            raise NotImplementedError()
-
         super(ACConv, self).__init__(aggr=aggregate_type, **kwargs)
 
-        self.V = nn.Linear(input_dim, output_dim)
-        self.A = nn.Linear(input_dim, output_dim)
+        if combine_type == "mlp":
+            self.mlp1 = MLP(
+                num_layers=num_mlp_layers,
+                input_dim=output_dim,
+                hidden_dim=output_dim,
+                output_dim=output_dim)
+            self.mlp2 = MLP(
+                num_layers=num_mlp_layers,
+                input_dim=output_dim,
+                hidden_dim=output_dim,
+                output_dim=output_dim)
+
+            self.combine = self.__combine_mlp
+        else:
+            self.V = nn.Linear(input_dim, output_dim)
+            self.A = nn.Linear(input_dim, output_dim)
+
+            self.combine = self.__combine_simple
 
     def forward(self, h, edge_index, batch):
         return self.propagate(
@@ -113,5 +126,11 @@ class ACConv(MessagePassing):
     def message(self, h_j):
         return h_j
 
-    def update(self, aggr, h):
+    def __combine_mlp(self, aggr, h):
+        return self.mlp1(h) + self.mlp2(aggr)
+
+    def __combine_simple(self, aggr, h):
         return self.V(h) + self.A(aggr)
+
+    def update(self, aggr, h):
+        return self.combine(aggr=aggr, h=h)
