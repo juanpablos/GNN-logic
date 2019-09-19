@@ -4,6 +4,9 @@ import torch_geometric.nn as geom_nn
 from torch_geometric.nn.conv import MessagePassing
 from .mlp import MLP
 
+# TODO: mlp combine is the same as simple with more layers
+# unify and implement another MLP if needed
+
 
 class ACRConv(MessagePassing):
     def __init__(

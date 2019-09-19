@@ -443,38 +443,34 @@ if __name__ == '__main__':
     # agg, read, comb
     _networks = [
         [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
-        [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
-        [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
-
-        [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
-        [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
-        [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
-
-        [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
-        [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
-        [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
-
-
         [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
         [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
         [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
 
+        [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
         [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
         [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
         [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
 
+        [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
         [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
         [{"add": "S"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
         [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
     ]
 
     print("Start running")
-    formula = "formula4"
-    for _key in ["formula4"]:
+    formula = "formula3"
+    for _key in ["formula3"]:
         for _enum, _set in enumerate([
-            [(f"{formula}/train-random-barabasi-5000-50-75",
-              f"{formula}/test-random-barabasi-500-50-75",
-              f"{formula}/test-random-barabasi-500-75-150")
+            [(f"{formula}/train-random-barabasi-5000-50-100",
+              f"{formula}/test-random-barabasi-500-50-100",
+              f"{formula}/test-random-barabasi-500-100-200")
              ],
         ]):
 
@@ -527,7 +523,7 @@ if __name__ == '__main__':
                         elif _net_class == "gin" and _comb == "mlp":
                             continue
 
-                        for l in [2, 3, 4, 5]:
+                        for l in [1, 2, 3, 4]:
 
                             print(a, r, c, _net_class, l)
 

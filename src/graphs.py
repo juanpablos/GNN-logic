@@ -21,6 +21,8 @@ def write_graphs(number_graphs: int,
     total_graph_1s = 0
     all_1s = 0
     all_0s = 0
+    avg_1s_not_all_1s = 0
+    not_all_1s_size = 0
 
     with open(filename, 'w') as f:
         # write number of graphs
@@ -36,8 +38,17 @@ def write_graphs(number_graphs: int,
             total_nodes += num_nodes
             total_1s += num_ones
             total_graph_1s += graph_label
-            all_1s += int(num_ones == len(graph))
-            all_0s += int(num_ones == 0)
+
+            _all_1s = num_ones == len(graph)
+            _all_0s = num_ones == 0
+
+            all_1s += int(_all_1s)
+            all_0s += int(_all_0s)
+            avg_1s_not_all_1s += num_ones if (
+                not _all_1s and not _all_0s) else 0
+
+            not_all_1s_size += num_nodes if (
+                not _all_1s and not _all_0s) else 0
 
             n_nodes = graph.number_of_nodes()
             label = graph.graph["label"]
@@ -68,8 +79,18 @@ def write_graphs(number_graphs: int,
     print(f"{total_graph_1s}/{number_graphs} graphs were tagged 1 ({float(total_graph_1s)/number_graphs})")
     print(f"{all_1s}/{number_graphs} graphs with all 1 ({float(all_1s)/number_graphs})")
     print(f"{all_0s}/{number_graphs} graphs with all 0 ({float(all_0s)/number_graphs})")
-    print(f"{all_0s+all_1s}/{number_graphs} graphs with all 0 or all 1 ({float(all_0s+all_1s)/number_graphs})")
+    # print(f"{all_0s+all_1s}/{number_graphs} graphs with all 0 or all 1 ({float(all_0s+all_1s)/number_graphs})")
     print(f"{number_graphs-all_0s-all_1s}/{number_graphs} graphs with 0 and 1 ({float(number_graphs-all_0s-all_1s)/number_graphs})")
+
+    if number_graphs - all_0s - all_1s > 0:
+        # average number of ones per graph in graph with not all 1s
+        avg_1s_not_all_1s = float(avg_1s_not_all_1s) / \
+            (number_graphs - all_0s - all_1s)
+        # average size of graphs with not all 1s
+        not_all_1s_size = float(not_all_1s_size) / \
+            (number_graphs - all_0s - all_1s)
+
+        print(f"{avg_1s_not_all_1s}/{not_all_1s_size} avg 1s in not all 1s ({float(avg_1s_not_all_1s)/not_all_1s_size})")
 
 
 def generate_dataset(filename,
@@ -195,11 +216,11 @@ if __name__ == "__main__":
     _data_name = f"random-{_name}"
     _m = 2
 
-    generate_dataset(f"test-{_data_name}",
-                     number_graphs=500,
+    generate_dataset(f"asd-{_data_name}",
+                     number_graphs=1000,
                      # empty|degree|line|random|cycle
                      generator_fn=_data_name.split("-")[0],
-                     n_nodes=(75, 150),
+                     n_nodes=(50, 50),
                      # line|cycle|normal|centroid
                      structure_fn="normal",
                      # formula{1|2|3}
@@ -207,7 +228,7 @@ if __name__ == "__main__":
                      seed=None,
                      number_colors=5,
                      # global, tuple
-                     greens=(10, 20),
+                     greens=(12, 12),
                      # random
                      name=_name,
                      m=_m,
@@ -229,7 +250,7 @@ if __name__ == "__main__":
                      # formula 4
                      nested="formula3",
                      local_prop_nested=[],
-                     nested_constraint=40,
+                     nested_constraint=10,
                      self_satisfy=False)
 
     # test_dataset(
