@@ -29,6 +29,8 @@ def write_graphs(number_graphs: int,
 
             graph, num_nodes, num_ones, graph_label = tagger(graph=graph)
 
+            graph = nx.convert_node_labels_to_integers(graph)
+
             total_nodes += num_nodes
             total_1s += num_ones
             total_graph_1s += graph_label
@@ -75,14 +77,19 @@ def generate_dataset(filename,
                      **kwargs):
     """
     generator_fn = empty|degree|line|random|cycle
-    structure_fn = line|cycle|normal
+    structure_fn = line|cycle|normal|centroid
     formula = formula{1|2|3}
+
+    greens: Tuple[int, int]
+        min and max greens
 
     graph_split -> [0.1, 0.3, 0.6]
     color_distributions -> {0:None, 1:[...], 2:[...]}
 
     kwargs:
         graph_generator:
+            create_centroids: bool, default False
+            centroid_only_green: bool, default True
 
             graph_degrees:
                 degrees: List[int], default None
@@ -166,32 +173,39 @@ if __name__ == "__main__":
 
     _tagger_fn = "formula3"
     _name = "barabasi"
-    _data_name = f"centroid-{_name}"
+    _data_name = f"random-{_name}"
     _m = 1
 
     generate_dataset(f"train-{_data_name}",
                      number_graphs=100,
+                     # empty|degree|line|random|cycle
                      generator_fn=_data_name.split("-")[0],
                      n_nodes=(50, 100),
+                     # line|cycle|normal|centroid
                      structure_fn="centroid",
+                     # formula{1|2|3}
                      formula=_tagger_fn,
                      seed=None,
                      number_colors=5,
+                     # global, tuple
+                     greens=(10, 20),
                      # random
                      name=_name,
                      m=_m,
                      # centroid
-                     centroids=(5, 10),
-                     nodes_per_centroid=(5, 10),
+                     create_centroids=True,
+                     centroids=(2, 2),
+                     nodes_per_centroid=(20, 20),
                      centroid_connectivity=0.5,
                      centroid_extra=None,  # {},
+                     centroid_only_green=True,
                      # tagger
                      # formula 1
                      n_green=1,
                      # formula 3
                      local_prop=[1],
                      global_prop=[0],
-                     global_constraint={0: 100},
+                     global_constraint={0: 1},
                      condition="and")
 
     # test_dataset(

@@ -15,7 +15,8 @@ class ColorDistributionSplit():
             colors,
             color_distributions,
             force_color,
-            force_color_position):
+            force_color_position,
+            greens):
 
         splits = np.array(graph_split) * number_graphs
         self.graph_splits = np.cumsum(splits)
@@ -25,6 +26,11 @@ class ColorDistributionSplit():
         self.color_distributions = color_distributions if color_distributions is not None else {}
         self.force_color = force_color if force_color is not None else {}
         self.force_color_position = force_color_position
+
+        self.limit_greens = False
+        if greens is not None:
+            self.min_greens, self.max_greens = greens
+            self.limit_greens = True
 
     def __call__(self, index, num_nodes):
         assert isinstance(index, int)
@@ -40,11 +46,25 @@ class ColorDistributionSplit():
         if self.current_split in self.color_distributions:
             color_distribution = self.color_distributions[self.current_split]
 
-        colors = np.random.choice(
-            self.colors,
-            size=num_nodes - len(forced_colors),
-            replace=True,
-            p=color_distribution).tolist() + forced_colors
+        if self.limit_greens:
+            n_greens = random.randint(self.min_greens, self.max_greens)
+            greens = [0] * n_greens
+
+            if color_distribution is not None:
+                color_distribution = color_distribution[1:]
+
+            colors = np.random.choice(
+                self.colors[1:],
+                size=num_nodes - greens,
+                replace=True,
+                p=color_distribution).tolist() + greens
+            ...
+        else:
+            colors = np.random.choice(
+                self.colors,
+                size=num_nodes - len(forced_colors),
+                replace=True,
+                p=color_distribution).tolist() + forced_colors
 
         colors = np.array(colors)
         np.random.shuffle(colors)
@@ -238,8 +258,6 @@ def __special_line(
 def __cycle_graphs(
         graph: nx.Graph,
         colors: List[int],
-        number: int,
-        n_graphs: int,
         *,
         two_color: bool = True,
         color_alternate: bool = False,
@@ -261,6 +279,34 @@ def __cycle_graphs(
     return graph
 
 
+def __centroid_graphs(
+        graph: nx.Graph,
+        colors: List[int],
+        **kwargs):
+
+    only_green_centroid = kwargs.get("centroid_only_green", True)
+
+    use_colors = colors
+    if only_green_centroid:
+        use_colors = use_colors[1:]
+
+    # TODO: support node proportion
+    node_colors = np.random.choice(
+        use_colors,
+        size=len(graph),
+        replace=True,
+        p=None)
+
+    nx.set_node_attributes(graph, dict(zip(graph, node_colors)), name="color")
+    central_nodes = filter(lambda name: name.split("-")[1] == "0", graph)
+
+    nx.set_node_attributes(
+        graph, dict.fromkeys(
+            central_nodes, 0), name="color")
+
+    return graph
+
+
 def color_generator(graph_generator: Generator[nx.Graph, None, None],
                     number_graphs: int,
                     min_nodes: int,
@@ -273,6 +319,7 @@ def color_generator(graph_generator: Generator[nx.Graph, None, None],
                     special_line: bool = False,
                     force_color: Dict[int, Dict[int, int]] = None,
                     force_color_position: Dict[int, Dict[int, int]] = None,
+                    greens: Tuple[int, int] = None,
                     **kwargs) -> Generator[Union[int, nx.Graph], None, None]:
 
     if graph_split is not None:
@@ -292,7 +339,8 @@ def color_generator(graph_generator: Generator[nx.Graph, None, None],
         colors=possible_colors,
         color_distributions=color_distributions,
         force_color=force_color,
-        force_color_position=force_color_position)
+        force_color_position=force_color_position,
+        greens=greens)
 
     for i in range(1, number_graphs + 1):
         graph = next(graph_generator)
@@ -309,9 +357,13 @@ def color_generator(graph_generator: Generator[nx.Graph, None, None],
             graph = __cycle_graphs(
                 graph=graph,
                 colors=possible_colors,
-                number=i,
-                n_graphs=number_graphs,
                 color_alternate=bool(random.getrandbits(1)),
+                **kwargs)
+
+        elif structure_fn == "centroid":
+            graph = __centroid_graphs(
+                graph=graph,
+                colors=possible_colors,
                 **kwargs)
 
         elif structure_fn == "normal":

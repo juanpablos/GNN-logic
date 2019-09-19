@@ -4,13 +4,13 @@ import numpy as np
 from scipy.special import binom
 from torch_geometric.utils import to_networkx
 
-from .util import load_data
+from util import load_data
 
 graphs, _ = load_data(
-    dataset="../data/formula3/train-random-barabasi-10000-50-100.txt",
+    dataset="../data/formula3/train-random-barabasi-100-50-100.txt",
     degree_as_node_label=False)
 
-n = 50
+n = 1
 graph = to_networkx(graphs[n]).to_undirected()
 node_labels = graphs[n].node_labels.numpy()
 
