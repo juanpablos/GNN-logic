@@ -19,6 +19,8 @@ def write_graphs(number_graphs: int,
     total_nodes = 0
     total_1s = 0
     total_graph_1s = 0
+    all_1s = 0
+    all_0s = 0
 
     with open(filename, 'w') as f:
         # write number of graphs
@@ -34,6 +36,8 @@ def write_graphs(number_graphs: int,
             total_nodes += num_nodes
             total_1s += num_ones
             total_graph_1s += graph_label
+            all_1s += int(num_ones == len(graph))
+            all_0s += int(num_ones == 0)
 
             n_nodes = graph.number_of_nodes()
             label = graph.graph["label"]
@@ -62,6 +66,10 @@ def write_graphs(number_graphs: int,
 
     print(f"{total_1s}/{total_nodes} nodes were tagged 1 ({float(total_1s)/total_nodes})")
     print(f"{total_graph_1s}/{number_graphs} graphs were tagged 1 ({float(total_graph_1s)/number_graphs})")
+    print(f"{all_1s}/{number_graphs} graphs with all 1 ({float(all_1s)/number_graphs})")
+    print(f"{all_0s}/{number_graphs} graphs with all 0 ({float(all_0s)/number_graphs})")
+    print(f"{all_0s+all_1s}/{number_graphs} graphs with all 0 or all 1 ({float(all_0s+all_1s)/number_graphs})")
+    print(f"{number_graphs-all_0s-all_1s}/{number_graphs} graphs with 0 and 1 ({float(number_graphs-all_0s-all_1s)/number_graphs})")
 
 
 def generate_dataset(filename,
@@ -119,14 +127,22 @@ def generate_dataset(filename,
                     number of greens to search
 
             color_no_connected_color:
-                local_prop, default [1]
+                local_prop: List[int], default []
                     possible local properties
-                global_prop, default [0]
+                global_prop: List[int], default []
                     search for global properties
-                global_constraint, default [0: 1]
+                global_constraint: Dict[int, int], default {}
                     number of global properties to search
-                condition, default "and"
+                condition: str, "and"|"or", default "and"
                     if all global properties must be satisfied or only one
+
+            nested_property:
+                nested: str, formula{1|2|3}
+                    another property
+                local_prop_nested: List[int], default []
+                nested_constraint: int, default 1
+                    how many properties must be satisfied that are not from neighbors
+                self_satisfy: bool, default True
     """
 
     random.seed(seed)
@@ -152,6 +168,8 @@ def generate_dataset(filename,
 
     if "cycle" in filename:
         file_name = f"data/{formula}/{filename}-{number_graphs}-{min_nodes}-{max_nodes}-{kwargs['m']}.txt"
+    elif "asd" in filename:
+        file_name = f"data/{formula}/{filename}.txt"
     else:
         file_name = f"data/{formula}/{filename}-{number_graphs}-{min_nodes}-{max_nodes}.txt"
 
@@ -169,9 +187,10 @@ if __name__ == "__main__":
     formula3 -> x in G, R_1(x) and
         (exist_N_1 y_1 in G, such that G_1(y_1) AND|OR
          exist_N_2 y_2 in G, such that G_2(y_2) AND|OR ...)
+    formula4 -> x in G, R_1(x) and Exists N nodes that are not in Neigh(x) that satisfiy property Y
     """
 
-    _tagger_fn = "formula3"
+    _tagger_fn = "formula4"
     _name = "barabasi"
     _data_name = f"random-{_name}"
     _m = 2
@@ -180,7 +199,7 @@ if __name__ == "__main__":
                      number_graphs=500,
                      # empty|degree|line|random|cycle
                      generator_fn=_data_name.split("-")[0],
-                     n_nodes=(100, 200),
+                     n_nodes=(75, 150),
                      # line|cycle|normal|centroid
                      structure_fn="normal",
                      # formula{1|2|3}
@@ -206,7 +225,12 @@ if __name__ == "__main__":
                      local_prop=[],
                      global_prop=[0],
                      global_constraint={0: 12},
-                     condition="and")
+                     condition="and",
+                     # formula 4
+                     nested="formula3",
+                     local_prop_nested=[],
+                     nested_constraint=40,
+                     self_satisfy=False)
 
     # test_dataset(
     #     name=_data_name,

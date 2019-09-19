@@ -7,7 +7,7 @@ import torch
 from util import load_data
 
 graphs, _ = load_data(
-    dataset="../data/formula3/asdasd-random-barabasi-500-100-200.txt",
+    dataset="../data/formula4/asd-random-barabasi.txt",
     degree_as_node_label=False)
 
 n_graphs = len(graphs)

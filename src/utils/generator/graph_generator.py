@@ -70,7 +70,7 @@ def __generate_random_graph(
     if name == "barabasi":
         assert m is not None
     if name == "erdos":
-        assert p is not None
+        assert p is not None or m is not None
 
     if name == "erdos":
         if m is not None:

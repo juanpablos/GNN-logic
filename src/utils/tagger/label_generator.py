@@ -110,6 +110,44 @@ def __color_no_connected_color(graph: nx.Graph,
     return np.array(labels).astype(int), int(any(l > 0 for l in labels))
 
 
+def __neighbor_nested_property(graph: nx.Graph,
+                               nested: str,
+                               local_prop_nested: List[int] = None,
+                               nested_constraint: int = 1,
+                               self_satisfy=True,
+                               **kwargs) -> Tuple[List[int], int]:
+
+    if local_prop_nested is None:
+        local_prop_nested = []
+
+    # calculate the other property
+    inner_labels, _ = tagger_dispatch(nested, **kwargs)(graph)
+    num_1s = sum(inner_labels)
+
+    graph = nx.convert_node_labels_to_integers(
+        graph, label_attribute="old-name")
+
+    labels = []
+    for node in graph:
+        node_satisfy = True
+        if self_satisfy:
+            node_satisfy = bool(inner_labels[node])
+
+        if node_satisfy and (
+                graph.node[node]['color'] in local_prop_nested or len(local_prop_nested) == 0):
+            neighbors = graph.neighbors(node)
+            neigh_1s = sum(inner_labels[i] for i in neighbors)
+
+            if (num_1s - neigh_1s) >= nested_constraint:
+                labels.append(1)
+            else:
+                labels.append(0)
+        else:
+            labels.append(0)
+
+    return np.array(labels).astype(int), int(any(l > 0 for l in labels))
+
+
 class Tagger():
     def __init__(self, formula: str, **kwargs):
         self.tagger = tagger_dispatch(formula, **kwargs)
@@ -138,6 +176,7 @@ def tagger_dispatch(tagger,
         "formula1": partial(__red_exist_green, **kwargs),
         "formula2": partial(__red_exist_green, **kwargs),
         "formula3": partial(__color_no_connected_color, **kwargs),
+        "formula4": partial(__neighbor_nested_property, **kwargs),
     }
     if tagger not in options:
         raise ValueError()

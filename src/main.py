@@ -456,11 +456,12 @@ if __name__ == '__main__':
     ]
 
     print("Start running")
-    for _key in ["formula3"]:
+    formula = "formula4"
+    for _key in ["formula4"]:
         for _enum, _set in enumerate([
-            [("formula3/train-random-barabasi-5000-50-100",
-              "formula3/test-random-barabasi-500-50-100",
-              "formula3/test-random-barabasi-500-100-200")
+            [(f"{formula}/train-random-barabasi-5000-50-75",
+              f"{formula}/test-random-barabasi-500-50-75",
+              f"{formula}/test-random-barabasi-500-75-150")
              ],
         ]):
 
@@ -501,7 +502,7 @@ if __name__ == '__main__':
                     "acrgnn"
                 ]:
 
-                    filename = f"logging/formula3/{key}-{enum}-{index}.mix"
+                    filename = f"logging/{formula}/{key}-{enum}-{index}.mix"
                     for a, r, c in _networks:
                         (_agg, _agg_abr) = list(a.items())[0]
                         (_read, _read_abr) = list(r.items())[0]
@@ -513,11 +514,11 @@ if __name__ == '__main__':
                         elif _net_class == "gin" and _comb == "mlp":
                             continue
 
-                        for l in [2, 3, 4]:
+                        for l in [2, 3, 4, 5]:
 
                             print(a, r, c, _net_class, l)
 
-                            run_filename = f"formula3/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}"
+                            run_filename = f"{formula}/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}"
                             _args = argument_parser().parse_args(
                                 [
                                     f"--readout={_read}",
@@ -526,7 +527,7 @@ if __name__ == '__main__':
                                     f"--network={_net_class}",
                                     f"--mlp_combine_agg=add",
                                     f"--filename=logging/{run_filename}.log",
-                                    "--epochs=10",
+                                    "--epochs=20",
                                     # "--no_test",
                                     f"--batch_size=128",
                                     "--test_every=1",
