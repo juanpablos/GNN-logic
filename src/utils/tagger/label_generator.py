@@ -52,12 +52,11 @@ def __color_no_connected_color(graph: nx.Graph,
         raise ValueError()
 
     if local_prop is None:
-        # i am red
-        local_prop = [1]
+        local_prop = []
 
     if global_prop is None:
         # searching for green
-        global_prop = [0]
+        global_prop = []
 
     if global_constraint is None:
         global_constraint = {}
@@ -75,8 +74,8 @@ def __color_no_connected_color(graph: nx.Graph,
     labels = []
     for node in graph:
 
-        # if the node is of the local property color
-        if graph.node[node]['color'] in local_prop:
+        # if the node is of the local property color, or not searching for that
+        if graph.node[node]['color'] in local_prop or len(local_prop) == 0:
 
             # color count of my neighbors
             neighbor_color_map = __map_colors(graph, graph.neighbors(node))
@@ -93,8 +92,12 @@ def __color_no_connected_color(graph: nx.Graph,
             # if the number of nodes for each color is bigger than what
             # we need, the node satisfies the property
             # depends on the condition - AND or OR
-            satisfies = condition(
-                [left_in_graph[color] >= count_const for color, count_const in global_constraint.items()])
+            if len(global_constraint) != 0:
+                satisfies = condition(
+                    [left_in_graph[color] >= count_const for color, count_const in global_constraint.items()])
+            else:
+                # not searching for global
+                satisfies = True
 
             if satisfies:
                 labels.append(1)

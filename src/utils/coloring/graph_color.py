@@ -55,10 +55,10 @@ class ColorDistributionSplit():
 
             colors = np.random.choice(
                 self.colors[1:],
-                size=num_nodes - greens,
+                size=num_nodes - n_greens,
                 replace=True,
                 p=color_distribution).tolist() + greens
-            ...
+
         else:
             colors = np.random.choice(
                 self.colors,

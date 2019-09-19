@@ -7,16 +7,16 @@ from torch_geometric.utils import to_networkx
 from util import load_data
 
 graphs, _ = load_data(
-    dataset="../data/formula3/train-random-barabasi-100-50-100.txt",
+    dataset="../data/formula3/asdasd-random-barabasi-500-100-100.txt",
     degree_as_node_label=False)
 
-n = 1
+n = 52
 graph = to_networkx(graphs[n]).to_undirected()
 node_labels = graphs[n].node_labels.numpy()
 
 
 colors = graphs[n].x.numpy()
-print(graphs[n].graph_label)
+print(graphs[n].graph_label.item())
 
 color_map = {0: "green", 1: "red", 2: "blue", 3: "yellow", 4: "purple"}
 node_colors = [color for color in np.argmax(colors, axis=1)]

@@ -166,7 +166,7 @@ if __name__ == "__main__":
     # TODO: implement manual limit to number of nodes with each color
     """
     formula1 -> x in G, red(x) and exist_N y in G, such that green(y)
-    formula2 -> x in G, R_1(x) and
+    formula3 -> x in G, R_1(x) and
         (exist_N_1 y_1 in G, such that G_1(y_1) AND|OR
          exist_N_2 y_2 in G, such that G_2(y_2) AND|OR ...)
     """
@@ -174,15 +174,15 @@ if __name__ == "__main__":
     _tagger_fn = "formula3"
     _name = "barabasi"
     _data_name = f"random-{_name}"
-    _m = 1
+    _m = 2
 
-    generate_dataset(f"train-{_data_name}",
-                     number_graphs=100,
+    generate_dataset(f"test-{_data_name}",
+                     number_graphs=500,
                      # empty|degree|line|random|cycle
                      generator_fn=_data_name.split("-")[0],
-                     n_nodes=(50, 100),
+                     n_nodes=(100, 200),
                      # line|cycle|normal|centroid
-                     structure_fn="centroid",
+                     structure_fn="normal",
                      # formula{1|2|3}
                      formula=_tagger_fn,
                      seed=None,
@@ -193,7 +193,7 @@ if __name__ == "__main__":
                      name=_name,
                      m=_m,
                      # centroid
-                     create_centroids=True,
+                     create_centroids=False,
                      centroids=(2, 2),
                      nodes_per_centroid=(20, 20),
                      centroid_connectivity=0.5,
@@ -203,9 +203,9 @@ if __name__ == "__main__":
                      # formula 1
                      n_green=1,
                      # formula 3
-                     local_prop=[1],
+                     local_prop=[],
                      global_prop=[0],
-                     global_constraint={0: 1},
+                     global_constraint={0: 12},
                      condition="and")
 
     # test_dataset(

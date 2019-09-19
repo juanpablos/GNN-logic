@@ -14,7 +14,6 @@ from tqdm import tqdm
 
 from gnn import *
 from utils.argparser import argument_parser
-from utils.graphs import online_generator
 from utils.util import load_data, separate_data
 
 
@@ -56,7 +55,7 @@ def train(
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        # scheduler.step()
+        scheduler.step()
 
         loss_accum.append(loss.detach().cpu().numpy())
 
@@ -333,8 +332,7 @@ def main(
 
     criterion = nn.BCEWithLogitsLoss(reduction='mean')
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
-    scheduler = None
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 
     if not args.filename == "":
         with open(args.filename, 'w') as f:
@@ -444,9 +442,9 @@ if __name__ == '__main__':
 
     # agg, read, comb
     _networks = [
-        # [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
-        [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
+        [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
+        [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
 
         [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
         [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
@@ -460,9 +458,9 @@ if __name__ == '__main__':
     print("Start running")
     for _key in ["formula3"]:
         for _enum, _set in enumerate([
-            [("formula3/train-random-5000-75-75-3",
-              "formula3/test-random-500-50-100-3",
-              "formula3/test-random-500-100-200-15"),
+            [("formula3/train-random-barabasi-5000-50-100",
+              "formula3/test-random-barabasi-500-50-100",
+              "formula3/test-random-barabasi-500-100-200")
              ],
         ]):
 
@@ -498,8 +496,8 @@ if __name__ == '__main__':
                     degree_as_node_label=False)
 
                 for _net_class in [
-                    # "acgnn",
-                    # "gin",
+                    "acgnn",
+                    "gin",
                     "acrgnn"
                 ]:
 
@@ -515,7 +513,7 @@ if __name__ == '__main__':
                         elif _net_class == "gin" and _comb == "mlp":
                             continue
 
-                        for l in [2, 5]:
+                        for l in [2, 3, 4]:
 
                             print(a, r, c, _net_class, l)
 
@@ -528,7 +526,7 @@ if __name__ == '__main__':
                                     f"--network={_net_class}",
                                     f"--mlp_combine_agg=add",
                                     f"--filename=logging/{run_filename}.log",
-                                    "--epochs=50",
+                                    "--epochs=10",
                                     # "--no_test",
                                     f"--batch_size=128",
                                     "--test_every=1",
