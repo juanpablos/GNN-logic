@@ -2,8 +2,8 @@
 import os
 import random
 from typing import List
-import matplotlib.pyplot as plt
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from gnn import *
 from utils.argparser import argument_parser
-from utils.util import load_data, separate_data
+from utils.util import load_data
 
 
 def __loss_aux(output, loss, data, binary_prediction):
@@ -442,19 +442,19 @@ if __name__ == '__main__':
 
     # agg, read, comb
     _networks = [
-        [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
-        [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
-        [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
-        [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
-        [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
-        [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
+        # [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
+        # [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
+        # [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
+        # [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
+        # [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
+        # [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
 
-        [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
-        [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
-        [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
-        [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
-        [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
-        [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
+        # [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
+        # [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
+        # [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
+        # [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
+        # [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
+        # [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
 
         [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
         [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
@@ -464,13 +464,15 @@ if __name__ == '__main__':
         [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
     ]
 
+    h = 64
+
     print("Start running")
     formula = "formula4"
-    for _key in ["formula4"]:
+    for _key in ["nested2"]:
         for _enum, _set in enumerate([
-            [(f"{formula}/train-random-erdos-5000-50-50",
-              f"{formula}/test-random-erdos-500-50-50",
-              f"{formula}/test-random-erdos-500-50-100")
+            [(f"{formula}/nested2/train-random-erdos-5000-50-50",
+              f"{formula}/nested2/test-random-erdos-500-50-50",
+              f"{formula}/nested2/test-random-erdos-500-45-55")
              ],
         ]):
 
@@ -506,8 +508,8 @@ if __name__ == '__main__':
                     degree_as_node_label=False)
 
                 for _net_class in [
-                    "acgnn",
-                    "gin",
+                    # "acgnn",
+                    # "gin",
                     "acrgnn"
                 ]:
 
@@ -536,11 +538,11 @@ if __name__ == '__main__':
                                     f"--network={_net_class}",
                                     f"--mlp_combine_agg=add",
                                     f"--filename=logging/{run_filename}.log",
-                                    "--epochs=20",
+                                    "--epochs=50",
                                     # "--no_test",
                                     f"--batch_size=128",
                                     "--test_every=1",
-                                    f"--hidden_dim=64",
+                                    f"--hidden_dim={h}",
                                     f"--num_layers={l}"
                                 ])
 
@@ -551,7 +553,7 @@ if __name__ == '__main__':
                                 test1_data=_test_graphs,
                                 test2_data=_test_graphs2,
                                 n_classes=_n_node_labels,
-                                # save_model=f"saved_models/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
+                                save_model=f"saved_models/{formula}/{key}/MODEL-{_net_class}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}-H{h}.pth",
                                 train_model=True,
                                 # load_model=f"saved_models/h32/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
                                 plot=f"plots/{run_filename}.png"

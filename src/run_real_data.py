@@ -1,15 +1,18 @@
 import argparse
+import os
+import random
 import time
 
+import numpy as np
 import torch
 import torch.nn.functional as F
-from torch import tensor
 from torch.optim import Adam
-from datasets.datasets import get_planetoid_dataset, random_planetoid_splits
+from torch_geometric.data import Batch
+
 from datasets.argparser_real_data import argument_parser
+from datasets.datasets import get_planetoid_dataset, random_planetoid_splits
 from gnn import ACRGNN
 from gnn.utils import reset
-from torch_geometric.data import Batch
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -63,7 +66,7 @@ def run(filename,
 
             val_loss_history.append(eval_info['val_loss'])
             if early_stopping > 0 and epoch > epochs // 2:
-                tmp = tensor(val_loss_history[-(early_stopping + 1):-1])
+                tmp = torch.tensor(val_loss_history[-(early_stopping + 1):-1])
                 if eval_info['val_loss'] > tmp.mean().item():
                     break
 
@@ -76,7 +79,8 @@ def run(filename,
         accs.append(test_acc)
         durations.append(t_end - t_start)
 
-    loss, acc, duration = tensor(val_losses), tensor(accs), tensor(durations)
+    loss, acc, duration = torch.tensor(
+        val_losses), torch.tensor(accs), torch.tensor(durations)
 
     print('Val Loss: {:.4f}, Test Accuracy: {:.3f} ± {:.3f}, Duration: {:.3f}'.
           format(loss.mean().item(),
@@ -85,7 +89,7 @@ def run(filename,
                  duration.mean().item()))
     with open(filename, 'a') as f:
         f.write(
-            f"{loss.mean().item()},{acc.mean().item()},{acc.std().item()},{duration.mean().item()}\n")
+            f"{loss.mean().item():.8f}, {acc.mean().item():.8f}, {acc.std().item():.8f}, {duration.mean().item():.8f}\n")
 
 
 def train(model, optimizer, data):
@@ -134,12 +138,24 @@ def get_model(args,
         task=args.task_type)
 
 
+def seed_everything(seed):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+
 if __name__ == "__main__":
     _dataset = "Cora"
     _network = "acrgnn"
 
     _networks = [
-        # [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
+        [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
         [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
         [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
         [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
@@ -160,16 +176,19 @@ if __name__ == "__main__":
         [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
         [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
     ]
-    for a, r, c in _networks:
-        (_agg, _agg_abr) = list(a.items())[0]
-        (_read, _read_abr) = list(r.items())[0]
-        (_comb, _comb_abr) = list(c.items())[0]
+    for l in [1, 2, 3, 4]:
 
-        for l in [1, 2, 3, 4]:
+        run_filename = f"logging/{_dataset}/real-L{l}.log"
+
+        with open(run_filename, 'w') as f:
+            f.write("val_loss,test_acc,test_std,duration\n")
+
+        for a, r, c in _networks:
+            (_agg, _agg_abr) = list(a.items())[0]
+            (_read, _read_abr) = list(r.items())[0]
+            (_comb, _comb_abr) = list(c.items())[0]
 
             print(a, r, c, _network, l)
-
-            run_filename = f"logging/{_dataset}/real-L{l}.log"
 
             _log_file = f"logging/{_dataset}/real-{_network}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.log"
             with open(_log_file, "w") as log_file:
@@ -178,7 +197,7 @@ if __name__ == "__main__":
                     [
                         f"--dataset={_dataset}",
                         "--random_splits=False",
-                        "--runs=10",
+                        "--runs=100",
                         f"--readout={_read}",
                         f"--aggregate={_agg}",
                         f"--combine={_comb}",
@@ -192,9 +211,6 @@ if __name__ == "__main__":
                 dataset = get_planetoid_dataset(
                     _args.dataset, _args.normalize_features)
                 permute_masks = random_planetoid_splits if _args.random_splits else None
-
-                with open(run_filename, 'w') as f:
-                    f.write("val_loss,test_acc,test_std,duration\n")
 
                 run(run_filename,
                     dataset,

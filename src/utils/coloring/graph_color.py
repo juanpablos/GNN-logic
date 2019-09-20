@@ -1,7 +1,6 @@
 import random
-from functools import partial
 from itertools import cycle
-from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
+from typing import Dict, Generator, List, Tuple
 
 import networkx as nx
 import numpy as np
@@ -312,6 +311,7 @@ def color_generator(graph_generator: Generator[nx.Graph, None, None],
                     min_nodes: int,
                     max_nodes: int,
                     structure_fn: str,
+                    verbose=False,
                     graph_split: List[float] = None,
                     color_distributions: Dict[int, List[float]] = None,
                     n_colors: int = 10,
@@ -320,7 +320,7 @@ def color_generator(graph_generator: Generator[nx.Graph, None, None],
                     force_color: Dict[int, Dict[int, int]] = None,
                     force_color_position: Dict[int, Dict[int, int]] = None,
                     greens: Tuple[int, int] = None,
-                    **kwargs) -> Generator[Union[int, nx.Graph], None, None]:
+                    **kwargs) -> Generator[nx.Graph, None, None]:
 
     if graph_split is not None:
         assert sum(graph_split) - 1 < 1e4
@@ -375,5 +375,6 @@ def color_generator(graph_generator: Generator[nx.Graph, None, None],
         else:
             raise ValueError()
 
-        print(f"{i}/{number_graphs} graphs colored")
+        if verbose:
+            print(f"{i}/{number_graphs} graphs colored")
         yield graph

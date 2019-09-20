@@ -1,7 +1,5 @@
-import random
 from functools import partial
-from itertools import cycle
-from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
+from typing import Callable, List, Tuple
 
 import networkx as nx
 import numpy as np
@@ -111,17 +109,38 @@ def __color_no_connected_color(graph: nx.Graph,
 
 
 def __neighbor_nested_property(graph: nx.Graph,
-                               nested: str,
-                               local_prop_nested: List[int] = None,
-                               nested_constraint: int = 1,
-                               self_satisfy=True,
+                               nested: List[str],
+                               local_prop_nested: List[List[int]],
+                               constraint_nested: List[int],
+                               self_satisfy_nested: List[bool],
                                **kwargs) -> Tuple[List[int], int]:
 
-    if local_prop_nested is None:
-        local_prop_nested = []
+    assert isinstance(nested, list)
+    assert isinstance(local_prop_nested, list)
+    assert isinstance(constraint_nested, list)
+    assert isinstance(self_satisfy_nested, list)
+    assert len(nested) == len(local_prop_nested) == len(
+        constraint_nested) == len(self_satisfy_nested)
+
+    # not empty
+    if nested:
+        fn = nested[0]
+        local_prop = local_prop_nested[0]
+        constraint = constraint_nested[0]
+        self_satisfy = self_satisfy_nested[0]
+    else:
+        raise ValueError("Can't loop forever")
+
+    if local_prop is None:
+        local_prop = []
 
     # calculate the other property
-    inner_labels, _ = tagger_dispatch(nested, **kwargs)(graph)
+    inner_labels, _ = tagger_dispatch(fn,
+                                      nested=nested[1:],
+                                      local_prop_nested=local_prop_nested[1:],
+                                      constraint_nested=constraint_nested[1:],
+                                      self_satisfy_nested=self_satisfy_nested[1:],
+                                      **kwargs)(graph)
     num_1s = sum(inner_labels)
 
     graph = nx.convert_node_labels_to_integers(
@@ -134,11 +153,12 @@ def __neighbor_nested_property(graph: nx.Graph,
             node_satisfy = bool(inner_labels[node])
 
         if node_satisfy and (
-                graph.node[node]['color'] in local_prop_nested or len(local_prop_nested) == 0):
+            graph.node[node]['color'] in local_prop or
+                len(local_prop) == 0):
             neighbors = graph.neighbors(node)
             neigh_1s = sum(inner_labels[i] for i in neighbors)
 
-            if (num_1s - neigh_1s) >= nested_constraint:
+            if (num_1s - neigh_1s) >= constraint:
                 labels.append(1)
             else:
                 labels.append(0)

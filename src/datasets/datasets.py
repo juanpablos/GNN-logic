@@ -1,7 +1,8 @@
 import os.path as osp
+
 import torch
-from torch_geometric.datasets import Planetoid
 import torch_geometric.transforms as T
+from torch_geometric.datasets import Planetoid
 
 # From
 # https://github.com/rusty1s/pytorch_geometric/blob/master/benchmark/citation/datasets.py

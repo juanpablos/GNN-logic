@@ -1,11 +1,9 @@
+import itertools
 import random
 from functools import partial
-from typing import Callable, Dict, Generator, List, Optional, Tuple, Union, Any
-import itertools
-import networkx as nx
-import numpy as np
+from typing import Any, Dict, Generator, Tuple, List
 
-# TODO: Urgent Refactor
+import networkx as nx
 
 
 def __generate_empty_graph(n_nodes: int, **kwargs) -> nx.Graph:
@@ -117,8 +115,8 @@ def __create_centroids(gen_fun,
     graph = nx.union_all(
         graphs,
         rename=map(
-            lambda i: str(i) +
-            "-",
+            lambda i: str(i)
+            + "-",
             range(
                 len(graphs))))
 

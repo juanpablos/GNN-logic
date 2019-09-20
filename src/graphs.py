@@ -214,13 +214,13 @@ if __name__ == "__main__":
     _tagger_fn = "formula4"
     _name = "erdos"
     _data_name = f"random-{_name}"
-    _m = 3
+    _m = 5
 
     generate_dataset(f"test-{_data_name}",
                      number_graphs=500,
                      # empty|degree|line|random|cycle
                      generator_fn=_data_name.split("-")[0],
-                     n_nodes=(50, 100),
+                     n_nodes=(45, 55),
                      # line|cycle|normal|centroid
                      structure_fn="normal",
                      # formula{1|2|3}
@@ -228,7 +228,7 @@ if __name__ == "__main__":
                      seed=None,
                      number_colors=5,
                      # global, tuple
-                     greens=(12, 12),
+                     greens=(14, 14),
                      # random
                      name=_name,
                      m=_m,
@@ -248,10 +248,22 @@ if __name__ == "__main__":
                      global_constraint={0: 12},
                      condition="and",
                      # formula 4
-                     nested="formula3",
-                     local_prop_nested=[],
-                     nested_constraint=10,
-                     self_satisfy=False)
+                     nested=[
+                         "formula4",
+                         "formula3"
+                     ],
+                     local_prop_nested=[
+                         [],
+                         []
+                     ],
+                     constraint_nested=[
+                         28,
+                         18
+                     ],
+                     self_satisfy_nested=[
+                         False,
+                         False
+                     ])
 
     # test_dataset(
     #     name=_data_name,

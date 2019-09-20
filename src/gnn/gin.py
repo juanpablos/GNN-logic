@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch_geometric.nn.conv import GINConv
+
 from .utils import reset
 
 
