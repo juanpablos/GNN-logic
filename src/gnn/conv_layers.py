@@ -28,17 +28,17 @@ class ACRConv(MessagePassing):
         if combine_type == "mlp":
             self.mlp1 = MLP(
                 num_layers=num_mlp_layers,
-                input_dim=output_dim,
+                input_dim=input_dim,
                 hidden_dim=output_dim,
                 output_dim=output_dim)
             self.mlp2 = MLP(
                 num_layers=num_mlp_layers,
-                input_dim=output_dim,
+                input_dim=input_dim,
                 hidden_dim=output_dim,
                 output_dim=output_dim)
             self.mlp3 = MLP(
                 num_layers=num_mlp_layers,
-                input_dim=output_dim,
+                input_dim=input_dim,
                 hidden_dim=output_dim,
                 output_dim=output_dim)
 
@@ -115,12 +115,12 @@ class ACConv(MessagePassing):
         if combine_type == "mlp":
             self.mlp1 = MLP(
                 num_layers=num_mlp_layers,
-                input_dim=output_dim,
+                input_dim=input_dim,
                 hidden_dim=output_dim,
                 output_dim=output_dim)
             self.mlp2 = MLP(
                 num_layers=num_mlp_layers,
-                input_dim=output_dim,
+                input_dim=input_dim,
                 hidden_dim=output_dim,
                 output_dim=output_dim)
 

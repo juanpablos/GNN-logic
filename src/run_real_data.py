@@ -8,7 +8,6 @@ from torch.optim import Adam
 from datasets.datasets import get_planetoid_dataset, random_planetoid_splits
 from datasets.argparser_real_data import argument_parser
 from gnn import ACRGNN
-from tqdm import tqdm
 from gnn.utils import reset
 from torch_geometric.data import Batch
 
@@ -50,7 +49,7 @@ def run(filename,
         test_acc = 0
         val_loss_history = []
 
-        for epoch in tqdm(range(1, epochs + 1)):
+        for epoch in range(1, epochs + 1):
             train(model, optimizer, data)
             eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
@@ -140,7 +139,7 @@ if __name__ == "__main__":
     _network = "acrgnn"
 
     _networks = [
-        [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
+        # [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
         [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
         [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
         [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
@@ -167,6 +166,8 @@ if __name__ == "__main__":
         (_comb, _comb_abr) = list(c.items())[0]
 
         for l in [1, 2, 3, 4]:
+
+            print(a, r, c, _network, l)
 
             run_filename = f"logging/{_dataset}/real-L{l}.log"
 
