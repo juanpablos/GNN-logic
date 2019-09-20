@@ -86,6 +86,16 @@ class ACRConv(MessagePassing):
     def update(self, aggr, h, readout):
         return self.combine(aggr=aggr, h=h, readout=readout)
 
+    def reset_parameters(self):
+        if hasattr(self, "V"):
+            self.V.reset_parameters()
+            self.A.reset_parameters()
+            self.R.reset_parameters()
+        else:
+            self.mlp1.reset_parameters()
+            self.mlp2.reset_parameters()
+            self.mlp3.reset_parameters()
+
 
 class ACConv(MessagePassing):
     def __init__(
@@ -137,3 +147,11 @@ class ACConv(MessagePassing):
 
     def update(self, aggr, h):
         return self.combine(aggr=aggr, h=h)
+
+    def reset_parameters(self):
+        if hasattr(self, "V"):
+            self.V.reset_parameters()
+            self.A.reset_parameters()
+        else:
+            self.mlp1.reset_parameters()
+            self.mlp2.reset_parameters()

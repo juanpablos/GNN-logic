@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from .utils import reset
 
 
 class MLP(nn.Module):
@@ -40,3 +41,10 @@ class MLP(nn.Module):
             for layer in range(self.num_layers - 1):
                 h = torch.relu(self.batch_norms[layer](self.linears[layer](h)))
             return self.linears[self.num_layers - 1](h)
+
+    def reset_parameters(self):
+        if self.linear_or_not:
+            reset(self.linear)
+        else:
+            reset(self.linears)
+            reset(self.batch_norms)

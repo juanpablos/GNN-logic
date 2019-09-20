@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch_geometric.nn.conv import GINConv
+from .utils import reset
 
 
 class GIN(torch.nn.Module):
@@ -62,3 +63,8 @@ class GIN(torch.nn.Module):
 
         else:
             raise NotImplementedError()
+
+    def reset_parameters(self):
+        reset(self.convs)
+        reset(self.batch_norms)
+        reset(self.linear_prediction)

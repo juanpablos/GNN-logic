@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 
 from gnn.conv_layers import ACRConv
+from .utils import reset
 
 
 class ACRGNN(torch.nn.Module):
@@ -69,3 +70,8 @@ class ACRGNN(torch.nn.Module):
 
         else:
             raise NotImplementedError()
+
+    def reset_parameters(self):
+        reset(self.convs)
+        reset(self.batch_norms)
+        reset(self.linear_prediction)
