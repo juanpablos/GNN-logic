@@ -465,12 +465,12 @@ if __name__ == '__main__':
     ]
 
     print("Start running")
-    formula = "formula3"
-    for _key in ["formula3"]:
+    formula = "formula4"
+    for _key in ["formula4"]:
         for _enum, _set in enumerate([
-            [(f"{formula}/train-random-barabasi-5000-50-100",
-              f"{formula}/test-random-barabasi-500-50-100",
-              f"{formula}/test-random-barabasi-500-100-200")
+            [(f"{formula}/train-random-erdos-5000-50-50",
+              f"{formula}/test-random-erdos-500-50-50",
+              f"{formula}/test-random-erdos-500-50-100")
              ],
         ]):
 

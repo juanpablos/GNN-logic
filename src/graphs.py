@@ -212,15 +212,15 @@ if __name__ == "__main__":
     """
 
     _tagger_fn = "formula4"
-    _name = "barabasi"
+    _name = "erdos"
     _data_name = f"random-{_name}"
-    _m = 2
+    _m = 3
 
-    generate_dataset(f"asd-{_data_name}",
-                     number_graphs=1000,
+    generate_dataset(f"test-{_data_name}",
+                     number_graphs=500,
                      # empty|degree|line|random|cycle
                      generator_fn=_data_name.split("-")[0],
-                     n_nodes=(50, 50),
+                     n_nodes=(50, 100),
                      # line|cycle|normal|centroid
                      structure_fn="normal",
                      # formula{1|2|3}
