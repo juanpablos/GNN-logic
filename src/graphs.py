@@ -21,8 +21,8 @@ def write_graphs(number_graphs: int,
     total_graph_1s = 0
     all_1s = 0
     all_0s = 0
-    avg_1s_not_all_1s = 0
-    not_all_1s_size = 0
+    avg_1s_not_all_1s = []
+    not_all_1s_size = []
 
     with open(filename, 'w') as f:
         # write number of graphs
@@ -44,11 +44,11 @@ def write_graphs(number_graphs: int,
 
             all_1s += int(_all_1s)
             all_0s += int(_all_0s)
-            avg_1s_not_all_1s += num_ones if (
-                not _all_1s and not _all_0s) else 0
+            if not _all_1s and not _all_0s:
+                avg_1s_not_all_1s.append(num_ones)
 
-            not_all_1s_size += num_nodes if (
-                not _all_1s and not _all_0s) else 0
+            if not _all_1s and not _all_0s:
+                not_all_1s_size.append(num_nodes)
 
             n_nodes = graph.number_of_nodes()
             label = graph.graph["label"]
@@ -75,6 +75,9 @@ def write_graphs(number_graphs: int,
                     f.write(
                         f"{n_features} {features} {node_attributes['label']} {n_edges} {edges}\n")
 
+    avg_1s_not_all_1s = np.array(avg_1s_not_all_1s, dtype=np.float)
+    not_all_1s_size = np.array(not_all_1s_size, dtype=np.float)
+
     print(f"{total_1s}/{total_nodes} nodes were tagged 1 ({float(total_1s)/total_nodes})")
     print(f"{total_graph_1s}/{number_graphs} graphs were tagged 1 ({float(total_graph_1s)/number_graphs})")
     print(f"{all_1s}/{number_graphs} graphs with all 1 ({float(all_1s)/number_graphs})")
@@ -84,13 +87,11 @@ def write_graphs(number_graphs: int,
 
     if number_graphs - all_0s - all_1s > 0:
         # average number of ones per graph in graph with not all 1s
-        avg_1s_not_all_1s = float(avg_1s_not_all_1s) / \
-            (number_graphs - all_0s - all_1s)
         # average size of graphs with not all 1s
-        not_all_1s_size = float(not_all_1s_size) / \
-            (number_graphs - all_0s - all_1s)
 
-        print(f"{avg_1s_not_all_1s}/{not_all_1s_size} avg 1s in not all 1s ({float(avg_1s_not_all_1s)/not_all_1s_size})")
+        temp = avg_1s_not_all_1s / not_all_1s_size
+
+        print(f"{np.mean(avg_1s_not_all_1s)}/{np.mean(not_all_1s_size)} avg 1s in not all 1s ({np.mean(temp)}, nodes +- {np.std(avg_1s_not_all_1s)})")
 
 
 def generate_dataset(filename,
@@ -134,6 +135,12 @@ def generate_dataset(filename,
 
             cycle_graph:
                 pair: bool, default True
+
+            grid_graph:
+                grid_n: int
+                grid_m: int
+                periodic: bool
+                diagonal: bool
 
         color_generator:
             special_line: bool
@@ -214,13 +221,13 @@ if __name__ == "__main__":
     _tagger_fn = "formula4"
     _name = "erdos"
     _data_name = f"random-{_name}"
-    _m = 5
+    _m = 8
 
-    generate_dataset(f"test-{_data_name}",
-                     number_graphs=500,
+    generate_dataset(f"test2-{_data_name}",
+                     number_graphs=250,
                      # empty|degree|line|random|cycle
                      generator_fn=_data_name.split("-")[0],
-                     n_nodes=(45, 55),
+                     n_nodes=(51, 60),
                      # line|cycle|normal|centroid
                      structure_fn="normal",
                      # formula{1|2|3}
@@ -228,10 +235,15 @@ if __name__ == "__main__":
                      seed=None,
                      number_colors=5,
                      # global, tuple
-                     greens=(14, 14),
+                     greens=(9, 15),
                      # random
                      name=_name,
                      m=_m,
+                     # grid
+                     grid_n=7,
+                     grid_m=7,
+                     periodic=False,
+                     diagonal=True,
                      # centroid
                      create_centroids=False,
                      centroids=(2, 2),
@@ -245,23 +257,23 @@ if __name__ == "__main__":
                      # formula 3
                      local_prop=[],
                      global_prop=[0],
-                     global_constraint={0: 12},
+                     global_constraint={0: (8, 10)},
                      condition="and",
                      # formula 4
                      nested=[
-                         "formula4",
+                         #  "formula4",
                          "formula3"
                      ],
                      local_prop_nested=[
-                         [],
+                         #  [],
                          []
                      ],
                      constraint_nested=[
-                         28,
-                         18
+                         #  (10, 30),
+                         (10, 20)
                      ],
                      self_satisfy_nested=[
-                         False,
+                         #  False,
                          False
                      ])
 

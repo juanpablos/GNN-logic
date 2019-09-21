@@ -421,6 +421,7 @@ def main(
             plt.ylim(bottom=0)
             plt.legend(loc='upper right')
             plt.savefig(plot, dpi=150, bbox_inches='tight')
+            plt.close()
 
         return file_line + ","
 
@@ -442,19 +443,19 @@ if __name__ == '__main__':
 
     # agg, read, comb
     _networks = [
-        # [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
-        # [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
-        # [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
+        [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
+        [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
+        [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
 
-        # [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
-        # [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
-        # [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
-        # [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
-        # [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
-        # [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
+        [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
+        [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
+        [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
 
         [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
         [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
@@ -468,11 +469,11 @@ if __name__ == '__main__':
 
     print("Start running")
     formula = "formula4"
-    for _key in ["nested2"]:
+    for _key in ["p2"]:
         for _enum, _set in enumerate([
-            [(f"{formula}/nested2/train-random-erdos-5000-50-50",
-              f"{formula}/nested2/test-random-erdos-500-50-50",
-              f"{formula}/nested2/test-random-erdos-500-45-55")
+            [(f"{formula}/p2/train-random-erdos-5000-40-50",
+              f"{formula}/p2/test-random-erdos-500-40-50",
+              f"{formula}/p2/test-random-erdos-500-51-60")
              ],
         ]):
 
@@ -508,9 +509,9 @@ if __name__ == '__main__':
                     degree_as_node_label=False)
 
                 for _net_class in [
-                    # "acgnn",
-                    # "gin",
-                    "acrgnn"
+                    "acgnn",
+                    "gin",
+                    # "acrgnn"
                 ]:
 
                     filename = f"logging/{formula}/{key}-{enum}-{index}.mix"
@@ -525,7 +526,7 @@ if __name__ == '__main__':
                         elif _net_class == "gin" and _comb == "mlp":
                             continue
 
-                        for l in [1, 2, 3, 4]:
+                        for l in range(1, 11):
 
                             print(a, r, c, _net_class, l)
 
@@ -538,7 +539,7 @@ if __name__ == '__main__':
                                     f"--network={_net_class}",
                                     f"--mlp_combine_agg=add",
                                     f"--filename=logging/{run_filename}.log",
-                                    "--epochs=50",
+                                    "--epochs=20",
                                     # "--no_test",
                                     f"--batch_size=128",
                                     "--test_every=1",

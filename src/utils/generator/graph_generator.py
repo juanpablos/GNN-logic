@@ -95,6 +95,44 @@ def __generate_star_graph(n_nodes=None, **kwargs):
     return nx.star_graph(n_nodes)
 
 
+def __generate_grid_graph(
+        grid_n,
+        grid_m,
+        periodic=False,
+        diagonal=False,
+        **kwargs):
+
+    graph = nx.grid_2d_graph(n=grid_n, m=grid_m, periodic=periodic)
+
+    if diagonal:
+        graph.add_edges_from([
+            ((x, y), (x + 1, y + 1))
+            for x in range(grid_m - 1)
+            for y in range(grid_n - 1)
+        ] + [
+            ((x + 1, y), (x, y + 1))
+            for x in range(grid_m - 1)
+            for y in range(grid_n - 1)
+        ])
+
+        if periodic:
+            graph.add_edges_from([
+                ((0, y), (grid_m - 1, y + 1))
+                for y in range(grid_n - 1)
+            ] + [
+                ((0, y + 1), (grid_m - 1, y))
+                for y in range(grid_n)
+            ] + [
+                ((x, 0), (x + 1, grid_n - 1))
+                for x in range(grid_m)
+            ] + [
+                ((x + 1, 0), (x, grid_n - 1))
+                for x in range(grid_m)
+            ])
+
+    return graph
+
+
 def __create_centroids(gen_fun,
                        centroids: Tuple[int, int],
                        nodes_per_centroid: Tuple[int, int],
@@ -154,6 +192,9 @@ def graph_generator(generator_fn: str,
 
     elif generator_fn == "star":
         fn = __generate_star_graph
+
+    elif generator_fn == "grid":
+        fn = __generate_grid_graph
     else:
         raise ValueError()
 

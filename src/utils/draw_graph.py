@@ -7,10 +7,10 @@ from torch_geometric.utils import to_networkx
 from util import load_data
 
 graphs, _ = load_data(
-    dataset="../data/formula4/asd-random-barabasi.txt",
+    dataset="../data/formula3/asd-random-erdos.txt",
     degree_as_node_label=False)
 
-n = 4
+n = 0
 graph = to_networkx(graphs[n]).to_undirected()
 node_labels = graphs[n].node_labels.numpy()
 

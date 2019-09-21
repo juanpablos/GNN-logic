@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, Dict
 
 import networkx as nx
 import numpy as np
@@ -36,10 +36,10 @@ def __map_colors(graph, nodes):
 
 
 def __color_no_connected_color(graph: nx.Graph,
-                               local_prop=None,
-                               global_prop=None,
-                               global_constraint=None,
-                               condition="and",
+                               local_prop: List[int] = None,
+                               global_prop: List[int] = None,
+                               global_constraint: Dict[int, Tuple[int, int]] = None,
+                               condition: str = "and",
                                **kwargs) -> Tuple[List[int], int]:
 
     if condition == "and":
@@ -61,7 +61,7 @@ def __color_no_connected_color(graph: nx.Graph,
 
     for color in global_prop:
         if color not in global_constraint:
-            global_constraint[color] = 1
+            global_constraint[color] = (1, 1)
 
     # count graph colors
     graph_colors = __map_colors(graph, graph)
@@ -92,7 +92,12 @@ def __color_no_connected_color(graph: nx.Graph,
             # depends on the condition - AND or OR
             if len(global_constraint) != 0:
                 satisfies = condition(
-                    [left_in_graph[color] >= count_const for color, count_const in global_constraint.items()])
+                    [
+                        max_count >= left_in_graph[color] >= min_count
+                        for color, (min_count, max_count)
+                        in global_constraint.items()
+                    ]
+                )
             else:
                 # not searching for global
                 satisfies = True
@@ -111,7 +116,7 @@ def __color_no_connected_color(graph: nx.Graph,
 def __neighbor_nested_property(graph: nx.Graph,
                                nested: List[str],
                                local_prop_nested: List[List[int]],
-                               constraint_nested: List[int],
+                               constraint_nested: List[Tuple[int, int]],
                                self_satisfy_nested: List[bool],
                                **kwargs) -> Tuple[List[int], int]:
 
@@ -126,7 +131,7 @@ def __neighbor_nested_property(graph: nx.Graph,
     if nested:
         fn = nested[0]
         local_prop = local_prop_nested[0]
-        constraint = constraint_nested[0]
+        constraint_min, constraint_max = constraint_nested[0]
         self_satisfy = self_satisfy_nested[0]
     else:
         raise ValueError("Can't loop forever")
@@ -158,7 +163,7 @@ def __neighbor_nested_property(graph: nx.Graph,
             neighbors = graph.neighbors(node)
             neigh_1s = sum(inner_labels[i] for i in neighbors)
 
-            if (num_1s - neigh_1s) >= constraint:
+            if constraint_max >= (num_1s - neigh_1s) >= constraint_min:
                 labels.append(1)
             else:
                 labels.append(0)

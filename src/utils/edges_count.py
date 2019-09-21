@@ -7,7 +7,7 @@ import torch
 from util import load_data
 
 graphs, _ = load_data(
-    dataset="../data/formula4/asd-random-erdos.txt",
+    dataset="../data/formula3/asd-random-erdos.txt",
     degree_as_node_label=False)
 
 n_graphs = len(graphs)
@@ -20,6 +20,8 @@ average_color_count_1s = dict.fromkeys(range(n_colors), 0.)
 
 avg_biggest_component = 0.
 avg_connected_components = 0.
+
+diameter = []
 
 for graph_container in graphs:
     n_nodes += graph_container.num_nodes
@@ -39,6 +41,8 @@ for graph_container in graphs:
                                   for component in nx.connected_components(graph)])
     avg_connected_components += nx.number_connected_components(graph)
 
+    diameter.append(nx.diameter(graph))
+
 total_ones = sum(average_color_count_1s.values())
 
 print(f"Average number of nodes: {n_nodes/float(n_graphs)}")
@@ -49,6 +53,8 @@ print(f"Average number of 1s - nodes: {total_ones/float(n_nodes)}")
 print(
     f"Average connected components: {avg_connected_components/float(n_graphs)}")
 print(f"Biggest Component: {avg_biggest_component/float(n_graphs)}")
+
+print(f"Diameter {np.mean(diameter)}")
 
 for color in average_color_count:
     print(
