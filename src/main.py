@@ -304,6 +304,8 @@ def main(
         _model = ACGNN
     elif args.network == "acrgnn":
         _model = ACRGNN
+    elif args.network == "acrgnn-single":
+        _model = SingleACRGNN
     elif args.network == "gin":
         _model = GIN
     else:
@@ -443,24 +445,24 @@ if __name__ == '__main__':
 
     # agg, read, comb
     _networks = [
-        [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
-        [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
-        [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
-        [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
-        [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
-        [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
+        # [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
+        # [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
+        # [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
+        # [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
+        # [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
+        # [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
 
-        [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
-        [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
-        [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
-        [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
-        [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
-        [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
+        # [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
+        # [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
+        # [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
+        # [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
+        # [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
+        # [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
 
-        [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
-        [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
-        [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
-        [{"add": "S"}, {"max": "M"}, {"mlp": "MLP"}],
+        # [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
+        # [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
+        # [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
+        # [{"add": "S"}, {"max": "M"}, {"mlp": "MLP"}],
         [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
         [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
     ]
@@ -469,11 +471,11 @@ if __name__ == '__main__':
 
     print("Start running")
     formula = "formula4"
-    for _key in ["p2"]:
+    for _key in ["p3"]:
         for _enum, _set in enumerate([
-            [(f"{formula}/p2/train-random-erdos-5000-40-50",
-              f"{formula}/p2/test-random-erdos-500-40-50",
-              f"{formula}/p2/test-random-erdos-500-51-60")
+            [(f"{formula}/p3/train-random-erdos-5000-40-50",
+              f"{formula}/p3/test-random-erdos-500-40-50",
+              f"{formula}/p3/test-random-erdos-500-51-60")
              ],
         ]):
 
@@ -509,9 +511,10 @@ if __name__ == '__main__':
                     degree_as_node_label=False)
 
                 for _net_class in [
-                    "acgnn",
-                    "gin",
+                    # "acgnn",
+                    # "gin",
                     # "acrgnn"
+                    "acrgnn-single"
                 ]:
 
                     filename = f"logging/{formula}/{key}-{enum}-{index}.mix"
@@ -524,6 +527,8 @@ if __name__ == '__main__':
                                 _read == "max" or _read == "add"):
                             continue
                         elif _net_class == "gin" and _comb == "mlp":
+                            continue
+                        elif _net_class == "gin" and (_agg == "mean" or _agg == "max"):
                             continue
 
                         for l in range(1, 11):

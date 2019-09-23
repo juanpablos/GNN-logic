@@ -91,6 +91,7 @@ def argument_parser():
         default="acrgnn",
         choices=[
             "acrgnn",
+            "acrgnn-single",
             "acgnn",
             "gin"],
         help='Type of GNN to use. a=Aggregate, c=Combine, r=Readout')

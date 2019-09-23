@@ -261,19 +261,19 @@ if __name__ == "__main__":
                      condition="and",
                      # formula 4
                      nested=[
-                         #  "formula4",
+                         "formula4",
                          "formula3"
                      ],
                      local_prop_nested=[
-                         #  [],
+                         [],
                          []
                      ],
                      constraint_nested=[
-                         #  (10, 30),
+                         (10, 30),
                          (10, 20)
                      ],
                      self_satisfy_nested=[
-                         #  False,
+                         False,
                          False
                      ])
 
