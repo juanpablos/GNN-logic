@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from sklearn import metrics
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from gnn import *
+from utils.early_stopping import EarlyStopping
 
 
 def node_test(x, y, multi_label=False):
@@ -83,9 +84,7 @@ def train(
     return total_loss / data_count, node_acc
 
 
-def load_data():
-    path = osp.join(osp.dirname(osp.realpath(__file__)), '.', 'data', 'PPI')
-
+def load_data(path):
     train_dataset = PPI(path, split='train')
     val_dataset = PPI(path, split='val')
     test_dataset = PPI(path, split='test')
@@ -105,7 +104,8 @@ def trainer(
         test_loader,
         device,
         criterion,
-        max_epoch=200):
+        max_epoch=200,
+        early_stopping=None):
 
     lr = 2e-4
 
@@ -122,6 +122,8 @@ def trainer(
         cooldown=30,
         min_lr=lr / 100)
 
+    best_val_loss = float('inf')
+
     for epoch in range(0, max_epoch):
         train_loss, train_node_acc = train(
             model=model, optimizer=optimizer, loader=train_loader, device=device, mode="train", criterion=criterion)
@@ -137,6 +139,12 @@ def trainer(
 
         print(
             f"Epoch: {epoch}/{max_epoch}\nTrain:\t{train_loss}\t{train_node_acc}\nVal:\t{val_loss}\t{val_node_acc}\nTest:\t{test_loss}\t{test_node_acc}")
+
+        early_stopping(val_loss, model)
+
+        if early_stopping.early_stop:
+            print("Early stopping")
+            break
 
         scheduler.step(train_loss)
 
@@ -182,80 +190,95 @@ if __name__ == "__main__":
         [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
         [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
     ]
+
+    file_path = "."
+    extra_name = "ppi"
+
     for _net_class in [
-        # "acgnn",
+        "acgnn",
         "gin",
         "acrgnn"
-        # "acrgnn-single"
+        "acrgnn-single"
     ]:
 
-        filename = f"logging/ppi/ppi.mix"
+        filename = f"{file_path}/logging/{extra_name}/ppi.mix"
 
-        for a, r, c in _networks:
-            (_agg, _agg_abr) = list(a.items())[0]
-            (_read, _read_abr) = list(r.items())[0]
-            (_comb, _comb_abr) = list(c.items())[0]
+        for comb_layers in [1, 2]:
 
-            if (_net_class == "acgnn" or _net_class == "gin") and (
-                    _read == "max" or _read == "add"):
-                continue
-            elif _net_class == "gin" and _comb == "mlp":
-                continue
-            elif _net_class == "gin" and (_agg == "mean" or _agg == "max"):
-                continue
+            for a, r, c in _networks:
+                (_agg, _agg_abr) = list(a.items())[0]
+                (_read, _read_abr) = list(r.items())[0]
+                (_comb, _comb_abr) = list(c.items())[0]
 
-            for l in [1, 2, 3, 4]:
+                if _net_class == "acgnn" and (
+                        _read == "max" or _read == "add"):
+                    continue
+                elif _net_class == "gin" and (_agg == "mean" or _agg == "max" or _comb == "mlp" or _read == "max" or _read == "add"):
+                    continue
 
-                print(a, r, c, _net_class, l)
+                if _comb == "mlp" and comb_layers > 1:
+                    continue
 
-                _log_file = f"logging/ppi/ppi-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}-h{h}.log"
+                for l in [1, 2, 3, 4]:
 
-                with open(_log_file, "w") as log_file:
-                    log_file.write(
-                        "train_loss,val_loss,test_loss,train_acc,val_acc,test_acc\n")
+                    print(a, r, c, _net_class, l, comb_layers)
 
-                    train_dataset, val_dataset, test_dataset, train_loader, val_loader, test_loader = load_data()
+                    _log_file = f"{file_path}/logging/{extra_name}/ppi-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-cl{comb_layers}-L{l}-h{h}.log"
 
-                    if _net_class == "acgnn":
-                        _model = ACGNN
-                    elif _net_class == "acrgnn":
-                        _model = ACRGNN
-                    elif _net_class == "acrgnn-single":
-                        _model = SingleACRGNN
-                    elif _net_class == "gin":
-                        _model = GIN
+                    with open(_log_file, "w") as log_file:
+                        log_file.write(
+                            "train_loss,val_loss,test_loss,train_acc,val_acc,test_acc\n")
 
-                    seed_everything(0)
+                        train_dataset, val_dataset, test_dataset, train_loader, val_loader, test_loader = load_data(
+                            f"{file_path}/data/{extra_name}")
 
-                    if torch.cuda.is_available():
-                        device = torch.device("cuda")
-                    else:
-                        device = torch.device("cpu")
+                        if _net_class == "acgnn":
+                            _model = ACGNN
+                        elif _net_class == "acrgnn":
+                            _model = ACRGNN
+                        elif _net_class == "acrgnn-single":
+                            _model = SingleACRGNN
+                        elif _net_class == "gin":
+                            _model = GIN
 
-                    model = _model(
-                        num_layers=l,
-                        num_mlp_layers=2,
-                        input_dim=train_dataset.num_features,
-                        hidden_dim=h,
-                        output_dim=train_dataset.num_classes,
-                        combine_type=_comb,
-                        aggregate_type=_agg,
-                        readout_type=_read,
-                        task="node",
-                        device=device)
+                        seed_everything(0)
 
-                    model = model.to(device)
+                        if torch.cuda.is_available():
+                            device = torch.device("cuda:0")
+                        else:
+                            device = torch.device("cpu")
 
-                    trainer(
-                        model=model,
-                        logger=log_file,
-                        summary_file=filename,
-                        train_loader=train_loader,
-                        val_loader=val_loader,
-                        test_loader=test_loader,
-                        device=device,
-                        criterion=torch.nn.BCEWithLogitsLoss(),
-                        max_epoch=100)
+                        model = _model(
+                            input_dim=train_dataset.num_features,
+                            hidden_dim=h,
+                            output_dim=train_dataset.num_classes,
+                            num_layers=l,
+                            aggregate_type=_agg,
+                            readout_type=_read,
+                            combine_type=_comb,
+                            combine_layers=comb_layers,
+                            num_mlp_layers=2,
+                            task="node",
+                            truncated_fn=None)
 
-            with open(filename, "a") as f:
-                f.write("\n")
+                        model = model.to(device)
+
+                        es = EarlyStopping(
+                            patience=20,
+                            model_name=f"{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}-h{h}",
+                            save_path=f"{file_path}/models/{extra_name}")
+
+                        trainer(
+                            model=model,
+                            logger=log_file,
+                            summary_file=filename,
+                            train_loader=train_loader,
+                            val_loader=val_loader,
+                            test_loader=test_loader,
+                            device=device,
+                            criterion=torch.nn.BCEWithLogitsLoss(),
+                            max_epoch=500,
+                            early_stopping=es)
+
+                with open(filename, "a") as f:
+                    f.write("\n")

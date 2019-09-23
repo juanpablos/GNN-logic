@@ -253,7 +253,8 @@ def main(
         save_model=None,
         load_model=None,
         train_model=True,
-        plot=None):
+        plot=None,
+        truncated_fn=None):
     # set up seeds and gpu device
     seed_everything(args.seed)
 
@@ -312,19 +313,17 @@ def main(
         raise ValueError()
 
     model = _model(
-        num_layers=args.num_layers,
-        num_mlp_layers=args.num_mlp_layers,
         input_dim=train_graphs[0].num_features,
         hidden_dim=args.hidden_dim,
         output_dim=num_classes,
-        final_dropout=args.final_dropout,
-        combine_type=args.combine,
+        num_layers=args.num_layers,
         aggregate_type=args.aggregate,
         readout_type=args.readout,
-        mlp_aggregate=args.mlp_combine_agg,
-        recursive_weighting=args.recursive_weighting,
+        combine_type=args.combine,
+        combine_layers=args.combine_layers,
+        num_mlp_layers=args.num_mlp_layers,
         task=args.task_type,
-        device=device)
+        truncated_fn=truncated_fn)
 
     if load_model is not None:
         print("Loading Model")
@@ -445,130 +444,124 @@ if __name__ == '__main__':
 
     # agg, read, comb
     _networks = [
-        # [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
-        # [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
-        # [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
+        [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
+        [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
+        [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
 
-        # [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
-        # [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
-        # [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
-        # [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
-        # [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
-        # [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
+        [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
+        [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
+        [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
 
-        # [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
-        # [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
-        # [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
-        # [{"add": "S"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
+        [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
+        [{"add": "S"}, {"max": "M"}, {"mlp": "MLP"}],
         [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
         [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
     ]
 
     h = 64
 
+    file_path = "."
+    data_path = "data/"
+    extra_name = ""
+
     print("Start running")
-    formula = "formula4"
-    for _key in ["p3"]:
-        for _enum, _set in enumerate([
-            [(f"{formula}/p3/train-random-erdos-5000-40-50",
-              f"{formula}/p3/test-random-erdos-500-40-50",
-              f"{formula}/p3/test-random-erdos-500-51-60")
+    data_dir = "datasets"
+    for key in ["p1", "p2", "p3"]:
+        for enum, _set in enumerate([
+            [(f"{data_dir}/{key}/train-random-erdos-5000-40-50",
+              f"{data_dir}/{key}/test-random-erdos-500-40-50",
+              f"{data_dir}/{key}/test-random-erdos-500-51-60")
              ],
         ]):
-
-            key = _key
-            enum = _enum
-
-            if "mix" in _set[0][0]:
-                key = "mix"
-                enum = 0
-
-            if "line" in _set[0][0]:
-                key = "line-special"
-                enum = 0
-
-            if "cycle" in _set[0][0]:
-                key = "cycle"
-                enum = 0
 
             for index, (_train, _test1, _test2) in enumerate(_set):
 
                 print(f"Start for dataset {_train}-{_test1}-{_test2}")
 
                 _train_graphs, (_, _, _n_node_labels) = load_data(
-                    dataset=f"data/{_train}.txt",
+                    dataset=f"{file_path}/{data_path}/{_train}.txt",
                     degree_as_node_label=False)
 
                 _test_graphs, _ = load_data(
-                    dataset=f"data/{_test1}.txt",
+                    dataset=f"{file_path}/{data_path}/{_test1}.txt",
                     degree_as_node_label=False)
 
                 _test_graphs2, _ = load_data(
-                    dataset=f"data/{_test2}.txt",
+                    dataset=f"{file_path}/{data_path}/{_test2}.txt",
                     degree_as_node_label=False)
 
                 for _net_class in [
-                    # "acgnn",
-                    # "gin",
-                    # "acrgnn"
+                    "acgnn",
+                    "gin",
+                    "acrgnn"
                     "acrgnn-single"
                 ]:
 
-                    filename = f"logging/{formula}/{key}-{enum}-{index}.mix"
-                    for a, r, c in _networks:
-                        (_agg, _agg_abr) = list(a.items())[0]
-                        (_read, _read_abr) = list(r.items())[0]
-                        (_comb, _comb_abr) = list(c.items())[0]
+                    filename = f"{file_path}/logging/{extra_name}{key}-{enum}-{index}.mix"
 
-                        if (_net_class == "acgnn" or _net_class == "gin") and (
-                                _read == "max" or _read == "add"):
-                            continue
-                        elif _net_class == "gin" and _comb == "mlp":
-                            continue
-                        elif _net_class == "gin" and (_agg == "mean" or _agg == "max"):
-                            continue
+                    for comb_layers in [1, 2]:
 
-                        for l in range(1, 11):
+                        for a, r, c in _networks:
+                            (_agg, _agg_abr) = list(a.items())[0]
+                            (_read, _read_abr) = list(r.items())[0]
+                            (_comb, _comb_abr) = list(c.items())[0]
 
-                            print(a, r, c, _net_class, l)
+                            if _net_class == "acgnn" and (
+                                    _read == "max" or _read == "add"):
+                                continue
+                            elif _net_class == "gin" and (_agg == "mean" or _agg == "max" or _comb == "mlp" or _read == "max" or _read == "add"):
+                                continue
 
-                            run_filename = f"{formula}/{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}"
-                            _args = argument_parser().parse_args(
-                                [
-                                    f"--readout={_read}",
-                                    f"--aggregate={_agg}",
-                                    f"--combine={_comb}",
-                                    f"--network={_net_class}",
-                                    f"--mlp_combine_agg=add",
-                                    f"--filename=logging/{run_filename}.log",
-                                    "--epochs=20",
-                                    # "--no_test",
-                                    f"--batch_size=128",
-                                    "--test_every=1",
-                                    f"--hidden_dim={h}",
-                                    f"--num_layers={l}"
-                                ])
+                            if _comb == "mlp" and comb_layers > 1:
+                                continue
 
-                            line = main(
-                                _args,
-                                manual=True,
-                                train_data=_train_graphs,
-                                test1_data=_test_graphs,
-                                test2_data=_test_graphs2,
-                                n_classes=_n_node_labels,
-                                save_model=f"saved_models/{formula}/{key}/MODEL-{_net_class}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}-H{h}.pth",
-                                train_model=True,
-                                # load_model=f"saved_models/h32/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
-                                plot=f"plots/{run_filename}.png"
-                            )
+                            for l in range(1, 11):
 
-                            # append results per layer
+                                print(a, r, c, _net_class, l, comb_layers)
+
+                                run_filename = f"{file_path}/logging/{extra_name}{key}-{enum}-{index}-{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-cl{comb_layers}-L{l}.log"
+                                _args = argument_parser().parse_args(
+                                    [
+                                        f"--readout={_read}",
+                                        f"--aggregate={_agg}",
+                                        f"--combine={_comb}",
+                                        f"--network={_net_class}",
+                                        f"--filename={run_filename}",
+                                        "--epochs=20",
+                                        f"--batch_size=128",
+                                        f"--hidden_dim={h}",
+                                        f"--num_layers={l}",
+                                        f"--combine_layers={comb_layers}",
+                                        f"--num_mlp_layers=2",
+                                        "--device=1"
+                                    ])
+
+                                line = main(
+                                    _args,
+                                    manual=True,
+                                    train_data=_train_graphs,
+                                    test1_data=_test_graphs,
+                                    test2_data=_test_graphs2,
+                                    n_classes=_n_node_labels,
+                                    save_model=f"{file_path}/models/{extra_name}{key}/MODEL-{_net_class}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-cl{comb_layers}-L{l}-H{h}.pth",
+                                    train_model=True,
+                                    # load_model=f"saved_models/h32/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
+                                    # plot=f"plots/{run_filename}.png",
+                                    truncated_fn=(0, 1)
+                                )
+
+                                # append results per layer
+                                with open(filename, 'a') as f:
+                                    f.write(line)
+
+                            # next combination
                             with open(filename, 'a') as f:
-                                f.write(line)
-
-                        # next combination
-                        with open(filename, 'a') as f:
-                            f.write("\n")
+                                f.write("\n")

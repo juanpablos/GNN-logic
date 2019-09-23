@@ -18,11 +18,6 @@ def argument_parser():
                         help='input batch size for training (default: 32)')
     parser.add_argument('--epochs', type=int, default=350,
                         help='number of epochs to train (default: 350)')
-    parser.add_argument(
-        '--test_every',
-        type=int,
-        default=20,
-        help='run the network on the test set every `test_every` number of epochs')
     parser.add_argument('--lr', type=float, default=0.01,
                         help='learning rate (default: 0.01)')
     parser.add_argument(
@@ -41,12 +36,15 @@ def argument_parser():
         default=2,
         help='number of layers for MLP EXCLUDING the input one (default: 2). 1 means linear model.')
     parser.add_argument(
+        '--combine_layers',
+        type=int,
+        default=1,
+        help='number of layers for MLP combne EXCLUDING the input one (default: 2).')
+    parser.add_argument(
         '--hidden_dim',
         type=int,
         default=64,
         help='number of hidden units for node representation (default: 64)')
-    parser.add_argument('--final_dropout', type=float, default=0.5,
-                        help='final layer dropout (default: 0.5)')
     parser.add_argument(
         '--readout',
         type=str,
@@ -73,16 +71,6 @@ def argument_parser():
             "simple",
             "mlp"],
         help='Reduction of the aggregation: simple or mlp')
-    parser.add_argument(
-        '--mlp_combine_agg',
-        type=str,
-        default="add",
-        choices=[
-            "add",
-            "mean",
-            "max",
-            "concat"],
-        help='Aggregate function to use inside mlp combine')
     parser.add_argument('--filename', type=str, default="training.log",
                         help='output file')
     parser.add_argument(
@@ -96,10 +84,6 @@ def argument_parser():
             "gin"],
         help='Type of GNN to use. a=Aggregate, c=Combine, r=Readout')
     parser.add_argument(
-        '--recursive_weighting',
-        action="store_true",
-        help='Whether the prediction operation should be performed based on all layers instead of just on the last one.')
-    parser.add_argument(
         '--task_type',
         type=str,
         default="node",
@@ -107,8 +91,4 @@ def argument_parser():
             "node",
             "graph"],
         help='Task to solve, `node` or `graph` classification')
-    parser.add_argument(
-        '--degree_as_label',
-        action="store_true",
-        help='If there are no labels, use the node degre as label.')
     return parser

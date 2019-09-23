@@ -16,6 +16,7 @@ class ACRConv(MessagePassing):
             aggregate_type: str,
             readout_type: str,
             combine_type: str,
+            combine_layers: int,
             num_mlp_layers: int,
             **kwargs):
 
@@ -26,29 +27,31 @@ class ACRConv(MessagePassing):
         super(ACRConv, self).__init__(aggr=aggregate_type, **kwargs)
 
         if combine_type == "mlp":
-            self.mlp1 = MLP(
+            self.mlp = MLP(
                 num_layers=num_mlp_layers,
-                input_dim=input_dim,
-                hidden_dim=output_dim,
-                output_dim=output_dim)
-            self.mlp2 = MLP(
-                num_layers=num_mlp_layers,
-                input_dim=input_dim,
-                hidden_dim=output_dim,
-                output_dim=output_dim)
-            self.mlp3 = MLP(
-                num_layers=num_mlp_layers,
-                input_dim=input_dim,
+                input_dim=output_dim,
                 hidden_dim=output_dim,
                 output_dim=output_dim)
 
-            self.combine = self.__combine_mlp
+            self.mlp_combine = True
         else:
-            self.V = nn.Linear(input_dim, output_dim)
-            self.A = nn.Linear(input_dim, output_dim)
-            self.R = nn.Linear(input_dim, output_dim)
+            self.V = MLP(
+                num_layers=combine_layers,
+                input_dim=input_dim,
+                hidden_dim=output_dim,
+                output_dim=output_dim)
+            self.A = MLP(
+                num_layers=combine_layers,
+                input_dim=input_dim,
+                hidden_dim=output_dim,
+                output_dim=output_dim)
+            self.R = MLP(
+                num_layers=combine_layers,
+                input_dim=input_dim,
+                hidden_dim=output_dim,
+                output_dim=output_dim)
 
-            self.combine = self.__combine_simple
+            self.mlp_combine = False
 
         self.readout = self.__get_readout_fn(readout_type)
 
@@ -77,24 +80,20 @@ class ACRConv(MessagePassing):
     def message(self, h_j):
         return h_j
 
-    def __combine_mlp(self, aggr, h, readout):
-        return self.mlp1(h) + self.mlp2(aggr) + self.mlp3(readout)
-
-    def __combine_simple(self, aggr, h, readout):
-        return self.V(h) + self.A(aggr) + self.R(readout)
-
     def update(self, aggr, h, readout):
-        return self.combine(aggr=aggr, h=h, readout=readout)
+        updated = self.V(h) + self.A(aggr) + self.R(readout)
+
+        if self.mlp_combine:
+            updated = self.mlp(updated)
+
+        return updated
 
     def reset_parameters(self):
-        if hasattr(self, "V"):
-            self.V.reset_parameters()
-            self.A.reset_parameters()
-            self.R.reset_parameters()
-        else:
-            self.mlp1.reset_parameters()
-            self.mlp2.reset_parameters()
-            self.mlp3.reset_parameters()
+        self.V.reset_parameters()
+        self.A.reset_parameters()
+        self.R.reset_parameters()
+        if hasattr(self, "mlp"):
+            self.mlp.reset_parameters()
 
 
 class ACConv(MessagePassing):
@@ -104,6 +103,7 @@ class ACConv(MessagePassing):
             output_dim: int,
             aggregate_type: str,
             combine_type: str,
+            combine_layers: int,
             num_mlp_layers: int,
             **kwargs):
 
@@ -113,23 +113,26 @@ class ACConv(MessagePassing):
         super(ACConv, self).__init__(aggr=aggregate_type, **kwargs)
 
         if combine_type == "mlp":
-            self.mlp1 = MLP(
+            self.mlp = MLP(
                 num_layers=num_mlp_layers,
-                input_dim=input_dim,
-                hidden_dim=output_dim,
-                output_dim=output_dim)
-            self.mlp2 = MLP(
-                num_layers=num_mlp_layers,
-                input_dim=input_dim,
+                input_dim=output_dim,
                 hidden_dim=output_dim,
                 output_dim=output_dim)
 
-            self.combine = self.__combine_mlp
+            self.mlp_combine = True
         else:
-            self.V = nn.Linear(input_dim, output_dim)
-            self.A = nn.Linear(input_dim, output_dim)
+            self.V = MLP(
+                num_layers=combine_layers,
+                input_dim=input_dim,
+                hidden_dim=output_dim,
+                output_dim=output_dim)
+            self.A = MLP(
+                num_layers=combine_layers,
+                input_dim=input_dim,
+                hidden_dim=output_dim,
+                output_dim=output_dim)
 
-            self.combine = self.__combine_simple
+            self.mlp_combine = False
 
     def forward(self, h, edge_index, batch):
         return self.propagate(
@@ -139,19 +142,16 @@ class ACConv(MessagePassing):
     def message(self, h_j):
         return h_j
 
-    def __combine_mlp(self, aggr, h):
-        return self.mlp1(h) + self.mlp2(aggr)
-
-    def __combine_simple(self, aggr, h):
-        return self.V(h) + self.A(aggr)
-
     def update(self, aggr, h):
-        return self.combine(aggr=aggr, h=h)
+        updated = self.V(h) + self.A(aggr)
+
+        if self.mlp_combine:
+            updated = self.mlp(updated)
+
+        return updated
 
     def reset_parameters(self):
-        if hasattr(self, "V"):
-            self.V.reset_parameters()
-            self.A.reset_parameters()
-        else:
-            self.mlp1.reset_parameters()
-            self.mlp2.reset_parameters()
+        self.V.reset_parameters()
+        self.A.reset_parameters()
+        if hasattr(self, "mlp"):
+            self.mlp.reset_parameters()
