@@ -34,8 +34,8 @@ def train(
         optimizer,
         loader,
         device,
-        node_multi_label,
         criterion,
+        node_multi_label=True,
         mode="train"):
 
     if mode == "train":
@@ -66,7 +66,7 @@ def train(
                                edge_index=data.edge_index,
                                batch=data.batch)
 
-        loss = criterion(logits, data.y, node_multi_label)
+        loss = criterion(logits, data.y)
 
         node_acc_count += node_test(logits,
                                     data.y,
@@ -87,7 +87,7 @@ def load_data():
     path = osp.join(osp.dirname(osp.realpath(__file__)), '.', 'data', 'PPI')
 
     train_dataset = PPI(path, split='train')
-    val_dataset = PPI(path, split='test')
+    val_dataset = PPI(path, split='val')
     test_dataset = PPI(path, split='test')
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=2, shuffle=False)
@@ -105,9 +105,7 @@ def trainer(
         test_loader,
         device,
         criterion,
-        max_epoch=2000):
-
-    model.to(device)
+        max_epoch=200):
 
     lr = 2e-4
 
@@ -124,7 +122,7 @@ def trainer(
         cooldown=30,
         min_lr=lr / 100)
 
-    for _ in range(0, max_epoch):
+    for epoch in range(0, max_epoch):
         train_loss, train_node_acc = train(
             model=model, optimizer=optimizer, loader=train_loader, device=device, mode="train", criterion=criterion)
 
@@ -135,13 +133,16 @@ def trainer(
             model=model, optimizer=optimizer, loader=test_loader, device=device, mode="test", criterion=criterion)
 
         logger.write(
-            f"{train_loss},{train_node_acc},{val_loss}, {val_node_acc},{test_loss},{test_node_acc}")
+            f"{train_loss},{val_loss},{test_loss},{train_node_acc},{val_node_acc},{test_node_acc}\n")
+
+        print(
+            f"Epoch: {epoch}/{max_epoch}\nTrain:\t{train_loss}\t{train_node_acc}\nVal:\t{val_loss}\t{val_node_acc}\nTest:\t{test_loss}\t{test_node_acc}")
 
         scheduler.step(train_loss)
 
     with open(summary_file, "a") as f:
         f.write(
-            f"{train_loss},{train_node_acc},{val_loss}, {val_node_acc},{test_loss},{test_node_acc}")
+            f"{train_loss},{val_loss},{test_loss},{train_node_acc},{val_node_acc},{test_node_acc},")
 
 
 def seed_everything(seed):
@@ -157,7 +158,7 @@ def seed_everything(seed):
 
 
 if __name__ == "__main__":
-    h = 64
+    h = 256
 
     _networks = [
         [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
@@ -182,10 +183,10 @@ if __name__ == "__main__":
         [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
     ]
     for _net_class in [
-        "acgnn",
+        # "acgnn",
         "gin",
         "acrgnn"
-        "acrgnn-single"
+        # "acrgnn-single"
     ]:
 
         filename = f"logging/ppi/ppi.mix"
@@ -211,7 +212,7 @@ if __name__ == "__main__":
 
                 with open(_log_file, "w") as log_file:
                     log_file.write(
-                        "train_loss,train_acc,val_loss,val_acc,test_loss,test_acc\n")
+                        "train_loss,val_loss,test_loss,train_acc,val_acc,test_acc\n")
 
                     train_dataset, val_dataset, test_dataset, train_loader, val_loader, test_loader = load_data()
 
@@ -243,13 +244,18 @@ if __name__ == "__main__":
                         task="node",
                         device=device)
 
+                    model = model.to(device)
+
                     trainer(
                         model=model,
-                        writter=log_file,
+                        logger=log_file,
                         summary_file=filename,
                         train_loader=train_loader,
                         val_loader=val_loader,
                         test_loader=test_loader,
                         device=device,
                         criterion=torch.nn.BCEWithLogitsLoss(),
-                        max_epoch=2000)
+                        max_epoch=100)
+
+            with open(filename, "a") as f:
+                f.write("\n")
