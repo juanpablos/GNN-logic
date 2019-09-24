@@ -88,9 +88,21 @@ def load_data(path):
     train_dataset = PPI(path, split='train')
     val_dataset = PPI(path, split='val')
     test_dataset = PPI(path, split='test')
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=2, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False)
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=1,
+        shuffle=True,
+        num_workers=0)
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=2,
+        shuffle=False,
+        num_workers=0)
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=2,
+        shuffle=False,
+        num_workers=0)
 
     return train_dataset, val_dataset, test_dataset, train_loader, val_loader, test_loader
 
@@ -152,6 +164,29 @@ def trainer(
         f.write(
             f"{train_loss},{val_loss},{test_loss},{train_node_acc},{val_node_acc},{test_node_acc},")
 
+    return train_node_acc, val_node_acc, test_node_acc
+
+
+def run_std(runs, file_name, **kwargs):
+    train_accs, val_accs, test_accs = [], [], []
+    for i in range(runs):
+        kwargs["model"].reset_parameters()
+
+        es = EarlyStopping(
+            patience=20)
+
+        train_node_acc, val_node_acc, test_node_acc = trainer(
+            early_stopping=es, **kwargs)
+
+        train_accs.append(train_node_acc)
+        val_accs.append(val_node_acc)
+        test_accs.append(test_node_acc)
+
+    with open(file_name, "w") as std_file:
+        std_file.write(f"{np.mean(train_accs)}, {np.std(train_accs)}\n")
+        std_file.write(f"{np.mean(val_accs)}, {np.std(val_accs)}\n")
+        std_file.write(f"{np.mean(test_accs)}, {np.std(test_accs)}\n")
+
 
 def seed_everything(seed):
     random.seed(seed)
@@ -169,46 +204,46 @@ if __name__ == "__main__":
     h = 256
 
     _networks = [
-        [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
-        [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
-        [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
-        [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
-        [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
-        [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
+        # [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
+        # [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
+        # [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
+        # [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
+        # [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
+        # [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
 
         [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
-        [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
-        [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
-        [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
-        [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
-        [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
+        # [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
+        # [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
+        # [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
+        # [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
+        # [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
 
-        [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
-        [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
-        [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
-        [{"add": "S"}, {"max": "M"}, {"mlp": "MLP"}],
-        [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
-        [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
+        # [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
+        # [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
+        # [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
+        # [{"add": "S"}, {"max": "M"}, {"mlp": "MLP"}],
+        # [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
+        # [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
     ]
 
     file_path = "."
-    extra_name = "ppi"
+    extra_name = "delete"
 
     for _net_class in [
-        "acgnn",
-        "gin",
-        "acrgnn"
-        "acrgnn-single"
+        # "acgnn",
+        # "gin",
+        "acrgnn",
+        # "acrgnn-single"
     ]:
 
         filename = f"{file_path}/logging/{extra_name}/ppi.mix"
 
-        for comb_layers in [1, 2]:
+        for a, r, c in _networks:
+            (_agg, _agg_abr) = list(a.items())[0]
+            (_read, _read_abr) = list(r.items())[0]
+            (_comb, _comb_abr) = list(c.items())[0]
 
-            for a, r, c in _networks:
-                (_agg, _agg_abr) = list(a.items())[0]
-                (_read, _read_abr) = list(r.items())[0]
-                (_comb, _comb_abr) = list(c.items())[0]
+            for comb_layers in [1]:
 
                 if _net_class == "acgnn" and (
                         _read == "max" or _read == "add"):
@@ -219,7 +254,7 @@ if __name__ == "__main__":
                 if _comb == "mlp" and comb_layers > 1:
                     continue
 
-                for l in [1, 2, 3, 4]:
+                for l in [2]:
 
                     print(a, r, c, _net_class, l, comb_layers)
 
@@ -263,22 +298,29 @@ if __name__ == "__main__":
 
                         model = model.to(device)
 
-                        es = EarlyStopping(
-                            patience=20,
-                            model_name=f"{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}-h{h}",
-                            save_path=f"{file_path}/models/{extra_name}")
+                        # trainer(
+                        #     model=model,
+                        #     logger=log_file,
+                        #     summary_file=filename,
+                        #     train_loader=train_loader,
+                        #     val_loader=val_loader,
+                        #     test_loader=test_loader,
+                        #     device=device,
+                        #     criterion=torch.nn.BCEWithLogitsLoss(),
+                        #     max_epoch=500,
+                        #     early_stopping=es)
 
-                        trainer(
-                            model=model,
-                            logger=log_file,
-                            summary_file=filename,
-                            train_loader=train_loader,
-                            val_loader=val_loader,
-                            test_loader=test_loader,
-                            device=device,
-                            criterion=torch.nn.BCEWithLogitsLoss(),
-                            max_epoch=500,
-                            early_stopping=es)
+                        run_std(runs=10,
+                                file_name="logging/ppi/ACR-M-A-SIMPLE-1-2",
+                                model=model,
+                                logger=log_file,
+                                summary_file=filename,
+                                train_loader=train_loader,
+                                val_loader=val_loader,
+                                test_loader=test_loader,
+                                device=device,
+                                criterion=torch.nn.BCEWithLogitsLoss(),
+                                max_epoch=500)
 
                 with open(filename, "a") as f:
                     f.write("\n")

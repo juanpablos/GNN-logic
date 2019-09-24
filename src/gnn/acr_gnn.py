@@ -116,10 +116,7 @@ class SingleACRGNN(torch.nn.Module):
         self.task = task
 
         self.bigger_input = input_dim > hidden_dim
-
-        if not self.bigger_input:
-            self.padding = nn.ConstantPad1d(
-                (0, hidden_dim - input_dim), value=0)
+        self.mlp_combine = combine_type == "mlp"
 
         if truncated_fn is not None:
             self.activation = nn.Hardtanh(
@@ -127,6 +124,10 @@ class SingleACRGNN(torch.nn.Module):
                 max_val=truncated_fn[1])
         else:
             self.activation = nn.ReLU()
+
+        if not self.bigger_input:
+            self.padding = nn.ConstantPad1d(
+                (0, hidden_dim - input_dim), value=0)
 
         self.convs = torch.nn.ModuleList()
         self.batch_norms = torch.nn.ModuleList()

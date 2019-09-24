@@ -14,7 +14,7 @@ class MLP(nn.Module):
         self.num_layers = num_layers
 
         if num_layers < 1:
-            raise ValueError("number of layers should be positive!")
+            self.linear = nn.Identity()
         elif num_layers == 1:
             # Linear model
             self.linear = nn.Linear(input_dim, output_dim)

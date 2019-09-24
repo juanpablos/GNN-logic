@@ -26,6 +26,7 @@ class ACRConv(MessagePassing):
 
         super(ACRConv, self).__init__(aggr=aggregate_type, **kwargs)
 
+        self.mlp_combine = False
         if combine_type == "mlp":
             self.mlp = MLP(
                 num_layers=num_mlp_layers,
@@ -34,24 +35,22 @@ class ACRConv(MessagePassing):
                 output_dim=output_dim)
 
             self.mlp_combine = True
-        else:
-            self.V = MLP(
-                num_layers=combine_layers,
-                input_dim=input_dim,
-                hidden_dim=output_dim,
-                output_dim=output_dim)
-            self.A = MLP(
-                num_layers=combine_layers,
-                input_dim=input_dim,
-                hidden_dim=output_dim,
-                output_dim=output_dim)
-            self.R = MLP(
-                num_layers=combine_layers,
-                input_dim=input_dim,
-                hidden_dim=output_dim,
-                output_dim=output_dim)
 
-            self.mlp_combine = False
+        self.V = MLP(
+            num_layers=combine_layers,
+            input_dim=input_dim,
+            hidden_dim=output_dim,
+            output_dim=output_dim)
+        self.A = MLP(
+            num_layers=combine_layers,
+            input_dim=input_dim,
+            hidden_dim=output_dim,
+            output_dim=output_dim)
+        self.R = MLP(
+            num_layers=combine_layers,
+            input_dim=input_dim,
+            hidden_dim=output_dim,
+            output_dim=output_dim)
 
         self.readout = self.__get_readout_fn(readout_type)
 
@@ -112,6 +111,7 @@ class ACConv(MessagePassing):
 
         super(ACConv, self).__init__(aggr=aggregate_type, **kwargs)
 
+        self.mlp_combine = False
         if combine_type == "mlp":
             self.mlp = MLP(
                 num_layers=num_mlp_layers,
@@ -120,19 +120,17 @@ class ACConv(MessagePassing):
                 output_dim=output_dim)
 
             self.mlp_combine = True
-        else:
-            self.V = MLP(
-                num_layers=combine_layers,
-                input_dim=input_dim,
-                hidden_dim=output_dim,
-                output_dim=output_dim)
-            self.A = MLP(
-                num_layers=combine_layers,
-                input_dim=input_dim,
-                hidden_dim=output_dim,
-                output_dim=output_dim)
 
-            self.mlp_combine = False
+        self.V = MLP(
+            num_layers=combine_layers,
+            input_dim=input_dim,
+            hidden_dim=output_dim,
+            output_dim=output_dim)
+        self.A = MLP(
+            num_layers=combine_layers,
+            input_dim=input_dim,
+            hidden_dim=output_dim,
+            output_dim=output_dim)
 
     def forward(self, h, edge_index, batch):
         return self.propagate(
