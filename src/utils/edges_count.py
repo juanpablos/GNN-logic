@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-from torch_geometric.utils import to_networkx
 import torch
+from torch_geometric.utils import to_networkx
 
 from util import load_data
 

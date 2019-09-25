@@ -1,13 +1,14 @@
 import random
 from functools import partial
 from itertools import cycle
-from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
-from utils.generator import *
-from utils.tagger import *
-from utils.coloring import *
+from typing import Dict, Generator, List, Tuple
 
 import networkx as nx
 import numpy as np
+
+from utils.coloring import *
+from utils.generator import *
+from utils.tagger import *
 
 
 def write_graphs(number_graphs: int,
@@ -209,13 +210,13 @@ def generate_dataset(filename,
 
 
 if __name__ == "__main__":
-    # TODO: implement manual limit to number of nodes with each color
     """
     formula1 -> x in G, red(x) and exist_N y in G, such that green(y)
     formula3 -> x in G, R_1(x) and
         (exist_N_1 y_1 in G, such that G_1(y_1) AND|OR
          exist_N_2 y_2 in G, such that G_2(y_2) AND|OR ...)
     formula4 -> x in G, R_1(x) and Exists N nodes that are not in Neigh(x) that satisfiy property Y
+    Formula4 represents the nested property.
     """
 
     _tagger_fn = "formula4"
@@ -260,6 +261,7 @@ if __name__ == "__main__":
                      global_constraint={0: (8, 10)},
                      condition="and",
                      # formula 4
+                     # for each element, it is a nested call
                      nested=[
                          "formula4",
                          "formula3"
@@ -276,57 +278,3 @@ if __name__ == "__main__":
                          False,
                          False
                      ])
-
-    # test_dataset(
-    #     name=_data_name,
-    #     tagger_fn=_tagger_fn,
-    #     seed=None,
-    #     n_colors=5,
-    #     number_of_graphs=500,
-    #     n_min=50,
-    #     n_max=100,
-    #     random_degrees=True,
-    #     min_degree=0,
-    #     max_degree=2,
-    #     no_green=False,
-    #     special_line=True,
-    #     edges=0.025,
-    #     split_line=_split_line,
-    #     m=_m,
-    #     force_green=3,
-    #     two_color=True,
-    #     # tagger
-    #     # formula 1
-    #     n_green=1,
-    #     # formula 3
-    #     local_prop=[1],
-    #     global_prop=[0],
-    #     global_constraint={0: 1},
-    #     condition="or")
-
-    # test_dataset(
-    #     name=_data_name,
-    #     tagger_fn=_tagger_fn,
-    #     seed=None,
-    #     n_colors=5,
-    #     number_of_graphs=500,
-    #     n_min=100,
-    #     n_max=200,
-    #     random_degrees=True,
-    #     min_degree=0,
-    #     max_degree=_prop,
-    #     no_green=False,
-    #     special_line=True,
-    #     edges=0.025,
-    #     split_line=_split_line,
-    #     m=_m,
-    #     force_green=3,
-    #     two_color=True,
-    #     # tagger
-    #     # formula 1
-    #     n_green=1,
-    #     # formula 3
-    #     local_prop=[1],
-    #     global_prop=[0],
-    #     global_constraint={0: 1},
-    #     condition="or")

@@ -1,7 +1,7 @@
 import itertools
 import random
 from functools import partial
-from typing import Any, Dict, Generator, Tuple, List
+from typing import Any, Dict, Generator, List, Tuple
 
 import networkx as nx
 

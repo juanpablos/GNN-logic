@@ -470,11 +470,11 @@ if __name__ == '__main__':
 
     file_path = "."
     data_path = "data"
-    extra_name = "hard_tanh/"
+    extra_name = "results/"
 
     print("Start running")
     data_dir = "datasets"
-    for key in ["p2", "p3"]:
+    for key in ["p1", "p2", "p3"]:
         for enum, _set in enumerate([
             [(f"{data_dir}/{key}/train-random-erdos-5000-40-50",
               f"{data_dir}/{key}/test-random-erdos-500-40-50",
@@ -499,20 +499,20 @@ if __name__ == '__main__':
                     degree_as_node_label=False)
 
                 for _net_class in [
-                    # "acgnn",
-                    # "gin",
+                    "acgnn",
+                    "gin",
                     "acrgnn",
                     "acrgnn-single"
                 ]:
 
-                    filename = f"{file_path}/logging/{extra_name}{key}-{enum}-{index}-extra2.mix"
+                    filename = f"{file_path}/logging/{extra_name}{key}-{enum}-{index}.mix"
 
                     for a, r, c in _networks:
                         (_agg, _agg_abr) = list(a.items())[0]
                         (_read, _read_abr) = list(r.items())[0]
                         (_comb, _comb_abr) = list(c.items())[0]
 
-                        for comb_layers in [2]:
+                        for comb_layers in [0, 1, 2]:
 
                             if _net_class == "acgnn" and (
                                     _read == "max" or _read == "add"):
@@ -555,7 +555,7 @@ if __name__ == '__main__':
                                     train_model=True,
                                     # load_model=f"saved_models/h32/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
                                     # plot=f"plots/{run_filename}.png",
-                                    truncated_fn=(-1, 1)
+                                    truncated_fn=None
                                 )
 
                                 # append results per layer

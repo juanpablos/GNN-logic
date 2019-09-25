@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from gnn.conv_layers import ACRConv, ACConv
+from gnn.conv_layers import ACConv, ACRConv
 
 from .utils import reset
 

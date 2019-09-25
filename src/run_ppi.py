@@ -1,14 +1,16 @@
 
-from torch_geometric.data import DataLoader
-import os.path as osp
-from torch_geometric.datasets import PPI
-import torch
-import numpy as np
-import random
 import os
+import os.path as osp
+import random
+
+import numpy as np
+import torch
 import torch.nn.functional as F
 from sklearn import metrics
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch_geometric.data import DataLoader
+from torch_geometric.datasets import PPI
+
 from gnn import *
 from utils.early_stopping import EarlyStopping
 
