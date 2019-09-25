@@ -444,26 +444,26 @@ if __name__ == '__main__':
 
     # agg, read, comb
     _networks = [
-        # [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
-        # [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
+        [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
+        [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
         [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
 
-        # [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
-        # [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
-        # [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
-        # [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
+        [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
+        [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
         [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
-        # [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
 
         [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
-        # [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
         [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
-        # [{"add": "S"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"add": "S"}, {"max": "M"}, {"mlp": "MLP"}],
         [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
-        # [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
+        [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
     ]
 
     h = 64
@@ -502,7 +502,7 @@ if __name__ == '__main__':
                     "acgnn",
                     "gin",
                     "acrgnn",
-                    "acrgnn-single"
+                    # "acrgnn-single"
                 ]:
 
                     filename = f"{file_path}/logging/{extra_name}{key}-{enum}-{index}.mix"
@@ -551,7 +551,7 @@ if __name__ == '__main__':
                                     test1_data=_test_graphs,
                                     test2_data=_test_graphs2,
                                     n_classes=_n_node_labels,
-                                    save_model=f"{file_path}/saved_models/{extra_name}{key}/MODEL-{_net_class}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-cl{comb_layers}-L{l}-H{h}.pth",
+                                    # save_model=f"{file_path}/saved_models/{extra_name}{key}/MODEL-{_net_class}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-cl{comb_layers}-L{l}-H{h}.pth",
                                     train_model=True,
                                     # load_model=f"saved_models/h32/MODEL-{_net_class}-{key}-{enum}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-L{l}.pth",
                                     # plot=f"plots/{run_filename}.png",

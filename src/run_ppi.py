@@ -206,34 +206,34 @@ if __name__ == "__main__":
     h = 256
 
     _networks = [
-        # [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
-        # [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
-        # [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
-        # [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"mean": "A"}, {"simple": "T"}],
+        [{"mean": "A"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"max": "M"}, {"simple": "T"}],
+        [{"mean": "A"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"mean": "A"}, {"add": "S"}, {"simple": "T"}],
+        [{"mean": "A"}, {"add": "S"}, {"mlp": "MLP"}],
 
         [{"max": "M"}, {"mean": "A"}, {"simple": "T"}],
-        # [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
-        # [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
-        # [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
-        # [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
-        # [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"max": "M"}, {"simple": "T"}],
+        [{"max": "M"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"max": "M"}, {"add": "S"}, {"simple": "T"}],
+        [{"max": "M"}, {"add": "S"}, {"mlp": "MLP"}],
 
-        # [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
-        # [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
-        # [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
-        # [{"add": "S"}, {"max": "M"}, {"mlp": "MLP"}],
-        # [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
-        # [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
+        [{"add": "S"}, {"mean": "A"}, {"simple": "T"}],
+        [{"add": "S"}, {"mean": "A"}, {"mlp": "MLP"}],
+        [{"add": "S"}, {"max": "M"}, {"simple": "T"}],
+        [{"add": "S"}, {"max": "M"}, {"mlp": "MLP"}],
+        [{"add": "S"}, {"add": "S"}, {"simple": "T"}],
+        [{"add": "S"}, {"add": "S"}, {"mlp": "MLP"}],
     ]
 
     file_path = "."
-    extra_name = "delete"
+    extra_name = "ppi"
 
     for _net_class in [
-        # "acgnn",
-        # "gin",
+        "acgnn",
+        "gin",
         "acrgnn",
         # "acrgnn-single"
     ]:
@@ -245,7 +245,7 @@ if __name__ == "__main__":
             (_read, _read_abr) = list(r.items())[0]
             (_comb, _comb_abr) = list(c.items())[0]
 
-            for comb_layers in [1]:
+            for comb_layers in [0, 1, 2]:
 
                 if _net_class == "acgnn" and (
                         _read == "max" or _read == "add"):
@@ -256,7 +256,7 @@ if __name__ == "__main__":
                 if _comb == "mlp" and comb_layers > 1:
                     continue
 
-                for l in [2]:
+                for l in [1, 2, 3, 4]:
 
                     print(a, r, c, _net_class, l, comb_layers)
 
@@ -300,29 +300,18 @@ if __name__ == "__main__":
 
                         model = model.to(device)
 
-                        # trainer(
-                        #     model=model,
-                        #     logger=log_file,
-                        #     summary_file=filename,
-                        #     train_loader=train_loader,
-                        #     val_loader=val_loader,
-                        #     test_loader=test_loader,
-                        #     device=device,
-                        #     criterion=torch.nn.BCEWithLogitsLoss(),
-                        #     max_epoch=500,
-                        #     early_stopping=es)
-
-                        run_std(runs=10,
-                                file_name="logging/ppi/ACR-M-A-SIMPLE-1-2",
-                                model=model,
-                                logger=log_file,
-                                summary_file=filename,
-                                train_loader=train_loader,
-                                val_loader=val_loader,
-                                test_loader=test_loader,
-                                device=device,
-                                criterion=torch.nn.BCEWithLogitsLoss(),
-                                max_epoch=500)
+                        run_std(
+                            runs=10,
+                            file_name=f"logging/ppi/{_net_class}-agg{_agg_abr}-read{_read_abr}-comb{_comb_abr}-cl{comb_layers}-L{l}-h{h}",
+                            model=model,
+                            logger=log_file,
+                            summary_file=filename,
+                            train_loader=train_loader,
+                            val_loader=val_loader,
+                            test_loader=test_loader,
+                            device=device,
+                            criterion=torch.nn.BCEWithLogitsLoss(),
+                            max_epoch=500)
 
                 with open(filename, "a") as f:
                     f.write("\n")
